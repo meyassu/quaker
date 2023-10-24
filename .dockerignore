@@ -1,0 +1,3 @@
+.env
+data/earthquake_data_filtered.csv
+data/earthquake_data_og.csv
