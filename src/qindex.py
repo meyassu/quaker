@@ -20,7 +20,6 @@ def build_rtree(mbrs_gdf):
 
 	return rtree
 
-
 def save_rtree(rtree, output_fpath):
     """
     Seralizes the rtree to a file.
@@ -45,11 +44,13 @@ def load_rtree(fpath):
     """
 
     # Load the serialized R-tree from a file
-    with open(fpath, 'rb') as f:
-        rtree = rtree.index.Index()
-        rtree.deserialize(f)
+    idx = index.Index(fpath)
+    return idx
+    # with open(fpath, 'rb') as f:
+    #     rtree = index.Index()
+    #     rtree.deserialize(f)
 
-    return rtree
+    # return rtree
 
 
 

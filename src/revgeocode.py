@@ -74,8 +74,7 @@ def reverse_geocode(query_points, rtree, boundaries_gdf):
 boundaries_gdf = gpd.read_file('../data/boundaries.geojson')
 mbrs_gdf = gpd.read_file('../data/mbrs.geojson')
 
-rtree = load_rtree('../data/rtree.dat')
-
+rtree = build_rtree(mbrs_gdf)
 
 land = [  (Point(-77.197457, 38.816880), 'Virginia'), (Point(-84.292047, 12.343192), 'Nicaragua'), 
 				(Point(-66.292447, -37.826000), 'Argentina'),(Point(-55.930024, -6.661990), 'Brazil'), 
@@ -119,4 +118,4 @@ seas = [
 
 
 
-reverse_geocode(seas, rtree, mbrs_gdf, boundaries_gdf)
+reverse_geocode(seas, rtree, boundaries_gdf)
