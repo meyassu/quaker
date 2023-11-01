@@ -1,19 +1,6 @@
 import pandas as pd
 from datetime import datetime
-
-
-def load_data(fpath):
-	"""
-	Loads data.
-
-	:fpath: (str) -> the filepath
-	"""
-
-	print('Loading data...')
-	
-	data = pd.read_csv(fpath)
-
-	return data
+from database import load_earthquake_data_local
 
 
 def validate_data(data):
@@ -81,11 +68,8 @@ def validate_data(data):
 
 
 
-
-
-
 fpath = '../data/earthquake_data.csv'
-data = load_data(fpath)
+data = load_earthquake_data_local(fpath)
 
 validate_data(data)
 	

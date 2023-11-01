@@ -1,201 +1,9 @@
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import box
 from shapely.geometry import Point
-from shapely.ops import unary_union, nearest_points
-from rtree import index
-from collections import defaultdict
 
-from pyproj import CRS
+from qindex import build_rtree, save_rtree, load_rtree
 
-
-GLOBAL_CRS = CRS("EPSG:4326")  
-     
-
-def shapefile_to_geojson(boundaries_shp_fpath, output_fpath):
-    """
-    Translates Shapefile into GeoJSON.
-
-    :param boundaries_shp_fpath: (str) -> boundary polygons Shapefile path
-    :param output_fpath: (str) -> output GeoJSON filepath
-
-    :return: None
-    """
-
-    boundaries_gdf = gpd.read_file(boundaries_shp_fpath)
-    boundaries_gdf.to_file(output_fpath, driver='GeoJSON')
-
-
-"""
-Subregion-level geospatial data
-"""
-def compute_subregion_boundaries(country_boundaries_gdf, output_fpath):
-    """
-    Computes subregion boundaries by dissolving respective constituent country boundaries.
-
-    :param country_boundaries_gdf: (gpd.GeoDataFrame) -> country boundaries GeoDataFrame 
-    :param output_fpath: (str) -> the output filepath for region boundaries
-
-    :return: (gpd.GeoDataFrame) -> the precise subregion boundaries
-    """
-
-    print('Computing subregion boundaries...')
-
-    subregion_boundaries_gdf = country_boundaries_gdf.dissolve(by='SUBREGION')
-    subregion_boundaries_gdf.to_file(output_fpath, driver='GeoJSON')
-
-    return subregion_boundaries_gdf
-
-def compute_subregion_mbrs(subregion_boundaries_gdf, output_fpath):
-    """
-    Computes subregion MBRs.
-
-    :param subregion_boundaries_gdf: (gpd.GeoDataFrame) -> the precise subregion boundaries
-    :param output_fpath: (gpd.GeoDataFrame) -> the output filepath for subregion MBRs
-
-    :return: (gpd.GeoDataFrame) -> the subregion MBRs
-    """
-
-    print("Computing subregion MBRs...")
-
-    # Compute bounding box for each subregion boundary and store in new GeoDataFrame
-    subregion_mbr_list = []
-    for index, row in subregion_boundaries_gdf.iterrows():
-        print(f'Processing {row["SUBREGION"]}...')
-        # Get geographic data
-        subregion = row['SUBREGION']
-        mbr = row['geometry'].envelope
-
-        subregion_mbr_list.append({'NAME': subregion, 'geometry': mbr})
-
-    subregion_mbrs_gdf = gpd.GeoDataFrame(subregion_mbr_list, crs=GLOBAL_CRS)
-
-	# Save MBR data in new file
-    subregion_mbrs_gdf.to_file(output_fpath, driver='GeoJSON')
-
-    return subregion_mbrs_gdf
-
-
-
-"""
-Country-level geospatial data
-"""
-def compute_country_mbrs(country_boundaries_gdf, output_fpath):
-    """
-    Simplifies complex country boundary polygons in NaturalEarth type
-    GeoJSON file by replacing them with minimum bounding rectangle (MBR).
-
-    :param country_boundaries_gdf: (gpd.GeoDataFrame) -> country boundaries GeoDataFrame
-    :param output_fpath: (str) -> the output filepath for country MBRs
-
-    :return: (gpd.GeoDataFrame) -> the country MBRs
-    """
-
-    print('Computing country MBRs...')
-
-    country_mbr_list = []
-    # Compute bounding box for each boundary and store in new Geo dataframe
-    for index, row in country_boundaries_gdf.iterrows():
-        print(f'Processing {row["NAME_LONG"]}...')
-        # Get geographic data
-        country = row['NAME_LONG']
-        mbr = row['geometry'].envelope
-
-        country_mbr_list.append({'NAME': country, 'geometry': mbr})
-
-    country_mbrs_gdf = gpd.GeoDataFrame(country_mbr_list, crs=GLOBAL_CRS)
-    country_mbrs_gdf['TERRAIN'] = 'LAND'
-
-    # Save MBR data in new file
-    country_mbrs_gdf.to_file(output_fpath, driver='GeoJSON')
-
-    return country_mbrs_gdf
-
-
-"""
-Marine-level geospatial data
-"""
-def compute_marine_mbrs(marine_boundaries_gdf, output_fpath):
-    """
-    Computes marine MBRs.
-
-    :param marine_bounaries_gdf: (gpd.GeoDataFrame) -> the precise marine boundaries
-    :param output_fpath: (str) -> the output filepath
-
-    :return: (gpd.GeoDataFrame) -> the marine MBRs
-    """
-
-    print('Computing marine MBRs')
-
-    # Compute bounding box for each marine boundary and store in new GeoDataFrame
-    marine_mbr_list = []
-    for index, row in marine_boundaries_gdf.iterrows():
-        print(f'Processing {row["name"]}...')
-        # Get geographic data
-        marine_region = row['name']
-        mbr = row['geometry'].envelope
-        marine_mbr_list.append({'NAME': marine_region, 'geometry': mbr})
-
-
-    marine_mbrs_gdf = gpd.GeoDataFrame(marine_mbr_list, crs=GLOBAL_CRS)
-    marine_mbrs_gdf['TERRAIN'] = 'WATER'
-
-    # Save MBR data in new file
-    marine_mbrs_gdf.to_file(output_fpath, driver='GeoJSON')
-
-    return marine_mbrs_gdf
-
-
-"""
-Spatial indexing computations
-"""
-def build_rtree(mbrs_gdf):
-	"""
-	Spatially indexes MBRs by building an R*-tree.
-
-	:param mbrs_gdf: (gpd.GeoDataFrame) -> contains all MBRs in geographical scope
-
-	:return: (rtree.Index) -> the R*-tree
-	"""
-
-	print('Building R*-tree...')
-	# Populate R*-tree with MBRs
-	rtree = index.Index()
-	for i, row in mbrs_gdf.iterrows():
-		rtree.insert(i, row['geometry'].bounds)
-
-	return rtree
-
-
-def save_rtree(rtree, output_fpath):
-    """
-    Seralizes the rtree to a file.
-
-    :param rtree: (rtree.index) -> the rtree
-    :param output_fpath: (str) -> the output filepath
-
-    :return: None
-    """
-
-    # Serialize the R-tree to a file
-    with open(output_fpath, 'wb') as f:
-        rtree.serialize(f)
-
-def load_rtree(fpath):
-    """
-    Loads the rtree from file.
-	
-	:param fpath: (str) -> the rtree filepath
-     
-     :return (rtree.Index) -> the rtree
-    """
-
-    # Load the serialized R-tree from a file
-    with open(fpath, 'rb') as f:
-        rtree = rtree.index.Index()
-        rtree.deserialize(f)
-
-    return rtree
 
 """
 Reverse geocoding algorithm
@@ -260,27 +68,13 @@ def reverse_geocode(query_points, rtree, boundaries_gdf):
 			region = find_closest_region(query_point, possible_regions_idx, boundaries_gdf)
 		print(f'Region: {region}')
 		print('---------------------------------------------------------------------')
-
-
-
-# Get country data
-# country_boundaries_gdf = gpd.read_file('../data/country_boundaries/country_boundaries.geojson')
-# country_mbrs_gdf = gpd.read_file('../data/country_boundaries/country_mbrs.geojson')
-
-
-# # Get marine data
-# marine_boundaries_gdf = gpd.read_file('../data/marine_boundaries/marine_boundaries.geojson')
-# marine_mbrs_gdf = gpd.read_file('../data/marine_boundaries/marine_mbrs.geojson')
+          
 
 # Parallel GeoDataFrames containing both country/ocean data
 boundaries_gdf = gpd.read_file('../data/boundaries.geojson')
 mbrs_gdf = gpd.read_file('../data/mbrs.geojson')
 
-
-rtree = build_rtree(mbrs_gdf)
-save_rtree(rtree, output_fpath='../data/rtree.dat')
-
-quit()
+rtree = load_rtree('../data/rtree.dat')
 
 
 land = [  (Point(-77.197457, 38.816880), 'Virginia'), (Point(-84.292047, 12.343192), 'Nicaragua'), 
@@ -326,20 +120,3 @@ seas = [
 
 
 reverse_geocode(seas, rtree, mbrs_gdf, boundaries_gdf)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -13,7 +13,6 @@ from prettytable import PrettyTable
 from dotenv import load_dotenv
 import os
 
-
 from exceptions import DatabaseConnectionError, AuthenticationTokenError, DataPushError, QueryExecutionError, TableExistenceError
 
 
@@ -87,13 +86,92 @@ def get_psql_engine(host, port, username, dbname, region):
     return engine
 
 
+
+"""
+Initialize database
+"""
+def init_database_neon(earthquake_data_fpath, big_table_name, small_table_name, small_fields, extra_fields):
+    """
+    Create PostGreSQL database on Neon platform.
+
+    :param earthquake_data_fpath: (str) -> the original earthquake data from Kaggle
+    :param big_table_name: (str) -> name for table storing original earthquake data
+    :param small_table_name: (str) -> name for smaller filtered table storing subset of fields
+    :small_fields: (list<str>) -> subset of fields to be included in small table
+    :param extra_fields: (dict <K: name, V: type>) extra fields to add to small table
+                                                   e.g. {'Region': 'TEXT', 'Subregion': 'TEXT', 'Country': 'TEXT'}
+    
+    :return: (bool) -> indicates whether operation was successful
+    """
+
+	# Load earthquake data
+    earthquake_data = load_earthquake_data_local(earthquake_data_fpath)
+
+
+    # Get PSQL engine
+    psql_engine = create_engine(get_neon_connection_str())
+    push_psql(data=earthquake_data, table_name=big_table_name, engine=psql_engine)
+
+    # Filter original table
+    filter_table(small_table_name=small_table_name, big_table_name=big_table_name, fields=small_fields, engine=psql_engine)
+
+    # Add geographic fields to filtered table
+    add_fields(table_name="earthquakes", fields=extra_fields, engine=psql_engine)
+
+    return True
+
+
+def init_database_aws(bucket_name, data_file_key, data_local_fpath, big_table_name, small_table_name, small_fields, extra_fields):
+    """
+    Initializes PostGreSQL database on AWS RDS instance.
+
+    :param bucket_name: (str) -> bucket name where earthquake data resides
+    :param data_file_key: (str) -> data file key for earthquake data
+    :param data_local_fpath: (str) -> local destination path for earthquake after being imported from S3
+    :param big_table_name: (str) -> name for table storing original earthquake data
+    :param small_table_name: (str) -> name for smaller filtered table storing subset of fields
+    :small_fields: (list<str>) -> subset of fields to be included in small table
+    :param extra_fields: (dict <K: name, V: type>) extra fields to add to small table
+                                                   e.g. {'Region': 'TEXT', 'Subregion': 'TEXT', 'Country': 'TEXT'}
+    
+    :return: (bool) -> indicates whether operation was successful
+    """
+
+    print('Initializing database...')
+    # Load earthquake data
+    earthquake_data = load_earthquake_data_aws(bucket_name, data_file_key, data_local_fpath)
+
+    # Get PSQL engine
+    host = os.getenv('PG_HOST')
+    port = os.getenv('PG_PORT')
+    username = os.getenv('PG_USERNAME')
+    dbname = os.getenv('PG_DBNAME')
+    region = os.getenv('REGION')
+
+    psql_engine = get_psql_engine(host, port, username, dbname, region)
+	
+
+    # Create table in database
+    push_psql(data=earthquake_data, table_name=big_table_name, engine=psql_engine)
+
+
+    # Filter original table
+    filter_table(small_table_name=small_table_name, big_table_name=big_table_name, fields=small_fields, engine=psql_engine)
+
+    # Add geographic fields to filtered table
+    add_fields(table_name=small_table_name, fields=extra_fields, engine=psql_engine)
+    
+    return True
+
+
+
 """""
 Modify database
 """
 def push_psql(data, table_name, engine):
     """
     Pushes data to PSQL database on RDS instance.
-`
+
     :param data: (pd.DataFrame) -> the data
     :param table_name: (str) -> the table name
     :param engine: (sqlalchemy.engine) -> the SQLAlchemy engine
@@ -113,7 +191,7 @@ def push_psql(data, table_name, engine):
     except Exception as e:                      # Catch-all
         raise DataPushError(f'Unexpected error: {e}')
 
-def filter_table(new_table_name, og_table_name, fields, engine):
+def filter_table(small_table_name, big_table_name, fields, engine):
     """
     Creates subset table.
 
@@ -138,9 +216,9 @@ def filter_table(new_table_name, og_table_name, fields, engine):
         connection.close()
 
     # Drop table if it already exists
-    if _table_exists(new_table_name, connection):
+    if _table_exists(small_table_name, connection):
         drop_query = f'''
-            DROP TABLE {new_table_name};
+            DROP TABLE {small_table_name};
         '''
         try:
             connection.execute(text(drop_query))
@@ -157,9 +235,9 @@ def filter_table(new_table_name, og_table_name, fields, engine):
     quoted_fields = ', '.join([f'"{f}"' for f in fields])
 
     sql_query = f'''
-        CREATE TABLE {new_table_name} AS
+        CREATE TABLE {small_table_name} AS
         SELECT {quoted_fields}
-        FROM {og_table_name};
+        FROM {big_table_name};
     '''
 
     # Execute & commit changes
@@ -179,7 +257,7 @@ def filter_table(new_table_name, og_table_name, fields, engine):
 
     # Close connection
     connection.close()
-    
+
 def add_fields(table_name, fields, engine):
     """
     Adds fields to given table.
@@ -250,6 +328,11 @@ def _table_exists(table_name, connection):
         raise QueryExecutionError(f'Unexpected error: {e}')
     finally:
         connection.rollback()
+
+
+"""
+Display database
+"""
 def view_database(engine):
     """
     Visualize all tables in the given database.
@@ -300,3 +383,50 @@ def view_database(engine):
     # Close connection
     connection.close()
 
+
+"""
+Load source files for database
+"""
+def load_earthquake_data_local(earthquake_data_fpath):
+    """
+    Loads data.
+
+    :earthquake_data_fpath: (str) -> the filepath
+    """
+
+    print('Loading earthquake data...')
+    try:
+        data = pd.read_csv(earthquake_data_fpath)
+    except Exception as e:
+        raise Exception(f'Error loading earthquake data: {e}')
+
+    return data
+
+
+def load_earthquake_data_aws(bucket_name, file_key, local_fpath):
+    """
+    Loads data from S3 bucket.
+
+    :param earthquake_data_fpath: (str) -> the filepath
+    """
+
+    print('Loading earthquake data...')
+ 
+    s3 = boto3.client('s3')
+
+    try:
+        s3.download_file(bucket_name, file_key, local_fpath)
+    except ClientError as e:
+        raise ClientError(f'Error downloading file from S3: {e}')
+
+    earthquake_data = pd.read_csv(local_fpath)
+
+    return earthquake_data
+
+
+
+
+
+# bucket_name = 'quakerbucket'
+# data_file_key= 'earthquake_data.csv'
+# data_local_fpath = '../data/earthquake_data.csv'
