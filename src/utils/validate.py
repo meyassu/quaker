@@ -2,7 +2,9 @@ import pandas as pd
 from datetime import datetime
 from database import load_earthquake_data_local
 
-
+"""
+TODO: update validate_data() to check the database
+"""
 def validate_data(data):
     """
     Validates the earthquake data.

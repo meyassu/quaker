@@ -2,13 +2,13 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 
-from qindex import build_rtree, save_rtree, load_rtree
+from qindex import build_rtree, _set_rtree_properties
 
 
 """
 Reverse geocoding algorithm
 """
-def pip(query_point, possible_regions):
+def pip(query_point, possible_region_boundaries, name_field='name', admin_field='admin'):
     """
     Determines which region the passed point is in.
 
@@ -19,14 +19,16 @@ def pip(query_point, possible_regions):
     :return: (str) -> the region of the given point
     """
 
-    for i, region in possible_regions.iterrows():
-        if query_point.within(region['geometry']):
-            return region['NAME']
+    for i, region_boundary in possible_region_boundaries.iterrows():
+        if query_point.within(region_boundary['geometry']):
+            region = region_boundary[name_field]
+            admin = region_boundary[admin_field]
+            return region, admin
 
     return None
 
 
-def find_closest_region(query_point, possible_regions_idx, boundaries_gdf):
+def find_closest_region(query_point, possible_region_boundaries_idx, boundaries_gdf, name_field='name', admin_field='admin'):
     """
     Finds the closest region to the passed point if PiP fails.
 
@@ -42,80 +44,89 @@ def find_closest_region(query_point, possible_regions_idx, boundaries_gdf):
     closest_region = None
     min_distance = float('inf')
 
-    for region_id in possible_regions_idx:
+    for region_id in possible_region_boundaries_idx:
         boundary_row = boundaries_gdf.loc[region_id]
         distance = query_point.distance(boundary_row['geometry'])
-        # print(f'Distance to {boundary_row['NAME']}: {distance}')
+        # print(f'Distance to {boundary_row[name_field]}: {distance}')
         if distance < min_distance:
             min_distance = distance
-            closest_region = boundary_row['NAME']
+            closest_region = boundary_row[name_field]
+            admin = boundary_row[admin_field]
         # print(f'Current closest region: {closest_region}')
         # print('------------------------------------------------------------------------')
 
-    return closest_region
+    return closest_region, admin
 
-def reverse_geocode(query_points, rtree, boundaries_gdf):
-	for data in query_points:
-		query_point = data[0]
-		region_truth = data[1]
-		print(f'Processing {query_point} in {region_truth}...')
-		possible_regions_idx = list(rtree.intersection(query_point.bounds))
-		possible_regions = boundaries_gdf.loc[possible_regions_idx]
-		possible_regions = possible_regions.sort_values(by='TERRAIN', ascending=True)
-		print(f'Possible regions:\n{possible_regions}')
-		region = pip(query_point, possible_regions)
-		if pd.isna(region):
-			region = find_closest_region(query_point, possible_regions_idx, boundaries_gdf)
-		print(f'Region: {region}')
-		print('---------------------------------------------------------------------')
+def reverse_geocode(query_points, rtree_obj, boundaries_gdf):
+    for data in query_points:
+        query_point = data[0]
+        loc_truth = data[1]
+        print(f'Processing {query_point} in {loc_truth}...')
+        possible_region_boundaries_idx = list(rtree_obj.intersection(query_point.bounds))
+        possible_region_boundaries = boundaries_gdf.loc[possible_region_boundaries_idx]
+        possible_region_boundaries = possible_region_boundaries.sort_values(by='TERRAIN', ascending=True)
+        print(f'Possible regions:\n{possible_region_boundaries}')
+        result = pip(query_point, possible_region_boundaries)
+        region = None
+        admin = None
+        if pd.isna(result):
+            region, admin = find_closest_region(query_point, possible_region_boundaries_idx, boundaries_gdf)
+        else:
+            region = result[0]
+            admin = result[1]
+
+        print(f'({region}, {admin})')
+        print('---------------------------------------------------------------------')
           
 
 # Parallel GeoDataFrames containing both country/ocean data
 boundaries_gdf = gpd.read_file('../data/boundaries.geojson')
 mbrs_gdf = gpd.read_file('../data/mbrs.geojson')
 
-rtree = build_rtree(mbrs_gdf)
+rtree_properties = _set_rtree_properties()
+rtree_obj = build_rtree(mbrs_gdf, rtree_properties)
 
-land = [  (Point(-77.197457, 38.816880), 'Virginia'), (Point(-84.292047, 12.343192), 'Nicaragua'), 
-				(Point(-66.292447, -37.826000), 'Argentina'),(Point(-55.930024, -6.661990), 'Brazil'), 
-				(Point(24.747279, -28.601562), 'South Africa'), (Point(47.368783, 9.064390), 'Somalia'),
-                (Point(-5.265410, 8.067759), 'Ivory Coast'), (Point(26.315105, 30.023420), 'Egypt'), 
-                (Point(-38.749716, 69.472438), 'Greenland'), (Point(-1.345844, 53.544831), 'UK'), 
-                (Point(-4.369510, 39.652232), 'Spain'), (Point(9.516957, 49.507218), 'Germany'),
-                (Point(27.211004, 49.797231), 'Ukraine'), (Point(18.475970, 65.863165), 'Sweden'), 
-                (Point(43.001264, 56.496391), 'Russia'), (Point(44.793067, 31.943442), 'Iraq'), 
-                (Point(64.502893, 31.371502), 'Afghanistan'), (Point(78.277374, 18.195612), 'India'),
-                (Point(78.837312, 38.346827), 'China'), (Point(102.468798, 46.158452), 'Mongolia'),  
-                (Point(98.915906, 65.545611),'Russia'), (Point(126.251947, 39.119298), 'North Korea'), 
-                (Point(138.169224, 35.846773), 'Japan'), (Point(125.286249, 8.100553), 'Phillipines'),
-                (Point(114.892655, 0.146878), 'Indonesia'), (Point(128.272641, 0.865758), 'Malaku Indonesia'),  
-                (Point(141.919226, -5.979751), 'Papau New Guinea'), (Point(134.049964, -22.603699), 'Australia'), 
-                (Point(169.981310, -44.814218), 'New Zealand'), (Point(21.321515, 8.397737), 'Central African Republic'),
-                (Point(39.102201, -78.213568), 'Antarctica'),
-                (Point(-77.616760, 23.976376), 'Bahamas'), (Point(-64.740367, 32.306103), 'Bermuda'),
-                (Point(-108.790561, 71.285275), 'Victoria Island'), (Point(144.885639, 13.520001), 'Guam'),  
-                (Point(177.650508, -17.966855), 'Fiji'), (Point(-155.200068, 19.559862), 'Hawaii'), 
-                (Point(-169.530569, 16.729344), 'Johnston Island'), (Point(158.246271, 6.9186070), 'Micronesia'),
-                (Point(159.765740, 6.687987), 'Mokil Indonesia')]
+land = [ (Point(-77.197457, 38.816880), ('Virginia', 'United States of America')), (Point(-85.984452, 12.280283), ('Managua', 'Nicaragua')), 
+         (Point(-67.948812, -33.966726), ('Mendoza', 'Argentina')),(Point(-62.154918, -12.090219), ('Rondonia', 'Brazil')), 
+         (Point(28.140690, -26.417593), ('Pretoria', 'South Africa')), (Point(41.749049, 2.894312), ('Gedo', 'Somalia')),
+         (Point(-6.500760, 8.240911), ('Woroba, Ivory Coast')), (Point(31.835150, 30.688430), ('Al-Sharqia', 'Egypt')), 
+         (Point(-52.750548, 76.622056), ('Avannaata', 'Greenland')), (Point(-0.990407, 51.274151), ('South East', 'United Kingdom')), 
+         (Point(-5.843060, 40.877832), ('Salamanca', 'Spain')), (Point(11.574789, 48.080932), ('Bavaria', 'Germany')),
+         (Point(36.300909, 49.992746), ('Kharkiv', 'Ukraine')), (Point(15.161976, 56.365633), ('Blekinge', 'Sweden')), 
+         (Point(128.264536, 53.661227), ('Amur', 'Russia')), (Point(42.363424, 35.915911), ('Ninawa', 'Iraq')), 
+         (Point(65.785174, 31.639532), ('Kandahar', 'Afghanistan')), (Point(75.187279, 31.263367), ('Punjab', 'India')),
+         (Point(112.117219, 28.465483), ('Gaungdong', 'China')), (Point(103.443507, 49.027224), ('Bulgan', 'Mongolia')),  
+         (Point(47.089535, 42.802956),('Dagestan', 'Russia')), (Point(125.256221, 38.280782), ('South Hwanghae', 'North Korea')), 
+         (Point(143.136155, 43.379200), ('Hokkaido', 'Japan')), (Point(121.279155, 14.648338), ('Rizal', 'Phillipines')),
+         (Point(115.446232, -8.324705), ('Bali', 'Indonesia')), (Point(129.758810, -3.112694), ('Malaku', 'Indonesia')),  
+         (Point(143.781299, -5.327070), ('Enga', 'Papau New Guinea')), (Point(148.456263, -24.999857), ('Queensland', 'Australia')), 
+         (Point(172.505144, -43.002014), ('Canterbury', 'New Zealand')), (Point(21.791340, 5.357683), ('Kotto', 'Central African Republic')),
+         (Point(-64.480459, -68.753132), ('East Antarctica', 'Antarctica')),
+         (Point(-75.960226, 23.608383), ('Exuma', 'Bahamas')), (Point(-64.733968, 32.317806), ('Smiths', 'Bermuda')),
+         (Point(-105.068909, 69.118733), ('Cambridge Bay', 'Victoria Island')), (Point(144.730715, 13.417842), ('Yona', 'Guam')),  
+         (Point(179.195970, -16.559115), ('Macuata', 'Fiji')), (Point(-157.932348, 21.430016), ('Honolulu', 'Hawaii')), 
+         (Point(-169.526758, 16.732058), ('Johnston Island', 'United States Minor Outlying Islands')), (Point(138.131944, 9.567096), ('Yap', 'Micronesia')),
+         (Point(159.766396, 6.692348), ('Mokil', 'Indonesia'))
+        ]
 
 oceans = [
-		   (Point(-19.410786, -25.399372), 'South Atlantic Ocean'), (Point(-38.681675, 36.970335), 'North Atlantic Ocean'),
-		   (Point(-139.580115, -51.982655), 'South Pacific Ocean'), (Point(-163.373354, 34.648612), 'North Pacific Ocean'),
-		   (Point(83.662074, -37.628773), 'South Indian Ocean'), (Point(78.289961, -0.547376), "North Indian Ocean"),
-		  (Point(-165.104174, -73.822360), 'Southern Ocean')]
+		   (Point(-19.410786, -25.399372), ('South Atlantic Ocean', None)), (Point(-38.681675, 36.970335), ('North Atlantic Ocean', None)),
+		   (Point(-139.580115, -51.982655), ('South Pacific Ocean', None)), (Point(-163.373354, 34.648612), ('North Pacific Ocean', None)),
+		   (Point(83.662074, -37.628773), ('South Indian Ocean', None)), (Point(78.289961, -0.547376), ('North Indian Ocean', None)),
+		   (Point(-165.104174, -73.822360), ('Southern Ocean', None))
+         ]
 		   
 
-seas = [
-          (Point(124.064183, 31.397935), 'East China Sea'), (Point(133.284169, 40.052335), 'Japan Sea'), 
-          (Point(113.741815, 16.406326), 'South China Sea'), (Point(89.307854, 16.406326), 'Bay of Bengal'),
-          (Point(102.896795, 7.726632), 'Gulf of Thailand'), (Point(111.190989, -4.105610), 'Java Sea'),
-          (Point(122.582401, 4.393135), 'Celebes Sea'), (Point(128.204137, -12.875791), 'Timor Sea (Australia)'),
-          (Point(125.467240, -4.695625), 'Banda Sea (Indonesia)'), (Point(153.280038, -21.418900), 'Coral Sea (Australia)'),
-          (Point(34.612570, 43.216938), 'Black Sea'), (Point(18.439507, 35.739415), 'Mediterranean Sea'), (Point(14.334037, 43.758497), 'Adriatic Sea'),
-          (Point(38.517827, 18.808599), 'Red Sea'), (Point(49.092521, 13.251091), 'Gulf of Aden'), (Point(49.590154, 28.479664), 'Persian Gulf'), 
-          (Point(-75.270514, 14.767139), 'Caribbean Sea')]
+seas =  [
+          (Point(124.064183, 31.397935), ('East China Sea', None)), (Point(133.284169, 40.052335), ('Japan Sea', None)), 
+          (Point(113.741815, 16.406326), ('South China Sea', None)), (Point(89.307854, 16.406326), ('Bay of Bengal', None)),
+          (Point(102.896795, 7.726632), ('Gulf of Thailand', None)), (Point(111.190989, -4.105610), ('Java Sea', None)),
+          (Point(122.582401, 4.393135), ('Celebes Sea', None)), (Point(128.204137, -12.875791), ('Timor Sea', None)),
+          (Point(125.467240, -4.695625), ('Banda Sea', None)), (Point(153.280038, -21.418900), ('Coral Sea', None)),
+          (Point(34.612570, 43.216938), ('Black Sea', None)), (Point(18.439507, 35.739415), ('Mediterranean Sea', None)), (Point(14.334037, 43.758497), ('Adriatic Sea', None)),
+          (Point(38.517827, 18.808599), ('Red Sea', None)), (Point(49.092521, 13.251091), ('Gulf of Aden', None)), (Point(49.590154, 28.479664), ('Persian Gulf', None)), 
+          (Point(-75.270514, 14.767139), ('Caribbean Sea', None))
+        ]
           
 
-
-
-reverse_geocode(seas, rtree, boundaries_gdf)
+reverse_geocode(land, rtree_obj, boundaries_gdf)
