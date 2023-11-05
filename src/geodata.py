@@ -6,7 +6,10 @@ GLOBAL_CRS = CRS("EPSG:4326")
 
 def compute_mbrs(boundaries_gdf, output_fpath):
     """
+    Computes MBRs from boundary data.
 
+    :param boundaries_gdf: (gpd.GeoDataFrame) -> the boundary data
+    :param output_fpath: (str) -> the output filepath
     """
     print(f'Computing MBRs...')
 
@@ -40,8 +43,6 @@ def _shapefile_to_geojson(boundaries_shp_fpath, output_fpath):
 
     boundaries_gdf = gpd.read_file(boundaries_shp_fpath)
     boundaries_gdf.to_file(output_fpath, driver='GeoJSON')
-
-
 
 
 
