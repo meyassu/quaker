@@ -5,12 +5,21 @@ import geopandas as gpd
 """
 Spatial indexing computations
 """
+def _set_rtree_properties(fpath='../data/rtree', overwrite=True, dat_extension='data', idx_extension='index'):
+    """
+    Sets rtree properties mostly relevant to serialization / deserialization.
 
-def _set_properties(fname='../data/rtree', overwrite=True, dat_extension='data', idx_extension='index'):
+    :param fpath: (str) -> the rtree filepath
+    :param overwrite: (bool) -> whether to overwrite existing rtree files during serialization
+    :param dat_extension: (str) -> file extension for data file
+    :param idx_extension: (str) -> file extension for index file
+
+    :return: (rtree.index.Property) -> object storing all property preferences
+    """
 
     properties = rtree.index.Property()
 
-    properties.filename = fname
+    properties.filename = fpath
 
     properties.overwrite = overwrite
 
@@ -55,4 +64,4 @@ def load_rtree(properties):
 
 
 mbrs_gdf = gpd.read_file('../data/mbrs.geojson')
-rtree = build_rtree(mbrs_gdf, _set_properties())
+rtree = build_rtree(mbrs_gdf, _set_rtree_properties())
