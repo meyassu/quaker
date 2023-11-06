@@ -178,7 +178,7 @@ def init_database_aws(bucket_name, data_file_key, data_local_fpath, big_table_na
 """""
 Modify database
 """
-def push_psql(data, table_name, engine):
+def push_psql(data, table_name, if_exists, engine):
     """
     Pushes data to PSQL database on RDS instance.
 
@@ -193,7 +193,7 @@ def push_psql(data, table_name, engine):
         raise DataPushError('Provided data is not a pandas DataFrame')
     
     try:
-        data.to_sql(table_name, engine, if_exists='replace', index=False)
+        data.to_sql(table_name, engine, if_exists=if_exists, index=False)
     except sqlalchemy_exc.DBAPIError as e:      # Catch DB connection error
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
     except sqlalchemy_exc.SQLAlchemyError as e: #
@@ -239,14 +239,14 @@ def filter_table(small_table_name, big_table_name, fields, engine):
     except sqlalchemy_exc.SQLAlchemyError as e: # Handle query execution error
         raise QueryExecutionError(f'Error execuring query: {e}') 
     except Exception as e:
-        raise DatabaseConnectionError(f'Unexpected error: {e}')
+        raise Exception(f'Unexpected error: {e}')
 
 def add_fields(table_name, fields, engine):
     """
     Adds fields to given table.
 
     :param table_name: (str) -> the name of the table
-    :param fields: (list) -> the fields
+    :param fields: (dict <K: field_name, V: datatype>) -> the fields
     :param engine: (SQLAlchemy.engine) -> the engine
 
     :return: None
@@ -275,7 +275,7 @@ def add_fields(table_name, fields, engine):
     except sqlalchemy_exc.SQLAlchemyError as e:  # Handle query execution error
         raise QueryExecutionError(f'Error executing query: {e}')
     except Exception as e:
-        raise DatabaseConnectionError(f'Unexpected error: {e}')
+        raise Exception(f'Unexpected error: {e}')
 
 def drop_fields(table_name, fields, engine):
     """
@@ -292,20 +292,23 @@ def drop_fields(table_name, fields, engine):
             # Ensure table exists
             if not _table_exists(table_name, connection):
                 raise TableExistenceError(f'{table_name} does not exist.')
-            quoted_fields = ', '.join([f'"{f}"' for f in fields])
-            query = f'''
+            
+            # Drop fields
+            for field in fields:
+                query = f'''
                     ALTER TABLE {table_name}
-                    DROP {quoted_fields};
+                    DROP "{field}";
                     '''
-            connection.execute(text(query))
-            print(f"Column {fields} deleted successfully.")
+                connection.execute(text(query))
+                print(f"Column {field} dropped successfully")
+            
             connection.commit()
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
     except sqlalchemy_exc.SQLAlchemyError as e:  # Handle query execution error
         raise QueryExecutionError(f'Error executing query: {e}')
     except Exception as e:
-        raise DatabaseConnectionError(f'Unexpected error: {e}')
+        raise Exception(f'Unexpected error: {e}')
 
 
 def _table_exists(table_name, connection):
@@ -452,8 +455,9 @@ def load_earthquake_data_aws(bucket_name, file_key, local_fpath):
 
 
 
+neon_engine = get_neon_engine()
+push_psql(data=pd.DataFrame([{'Province': 'BC', 'Country': 'Canada'}]), table_name='earthquakes', if_exists='append', engine=neon_engine)
 
-engine = get_neon_engine()
 
 # bucket_name = 'quakerbucket'
 # data_file_key= 'earthquake_data.csv'

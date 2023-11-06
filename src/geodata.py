@@ -45,20 +45,6 @@ def _shapefile_to_geojson(boundaries_shp_fpath, output_fpath):
     boundaries_gdf.to_file(output_fpath, driver='GeoJSON')
 
 
-region_boundaries_gdf = gpd.read_file('../data/region_boundaries/region_boundaries.geojson')
-region_boundaries_gdf['TERRAIN'] = 'LAND'
-region_boundaries_gdf.to_file('../data/region_boundaries/region_boundaries.geojson', driver='GeoJSON')
-
-marine_boundaries_gdf = gpd.read_file('../data/marine_boundaries/marine_boundaries.geojson')
-marine_boundaries_gdf['TERRAIN'] = 'WATER'
-marine_boundaries_gdf.to_file('../data/marine_boundaries/marine_boundaries.geojson', driver='GeoJSON')
-
-
-boundaries_gdf = pd.concat([region_boundaries_gdf, marine_boundaries_gdf], ignore_index=True)
-boundaries_gdf = boundaries_gdf[['name', 'admin', 'TERRAIN', 'geometry']]
-boundaries_gdf.to_file('../data/boundaries.geojson')
-
-
 
 
 
