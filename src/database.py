@@ -215,58 +215,31 @@ def filter_table(small_table_name, big_table_name, fields, engine):
 
     print('Filtering table...')
 
-    # Open connection
     try:
-        connection = engine.connect()
-    except sqlalchemy_exc.DBAPIError as e: # Handle DB connection error
+        # Open connection
+        with engine.connect() as connection:
+            # Drop table if it already exists
+            if _table_exists(small_table_name, connection):
+                drop_query = f'''
+                    DROP TABLE {small_table_name};
+                '''
+                connection.execute(text(drop_query))
+            
+            # Create new table with specified fields
+            quoted_fields = ', '.join([f'"{f}"' for f in fields])
+            sql_query = f'''
+                CREATE TABLE {small_table_name} AS
+                SELECT {quoted_fields}
+                FROM {big_table_name};
+            '''
+            connection.execute(text(sql_query))
+            connection.commit()
+    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
+    except sqlalchemy_exc.SQLAlchemyError as e: # Handle query execution error
+        raise QueryExecutionError(f'Error execuring query: {e}') 
     except Exception as e:
         raise DatabaseConnectionError(f'Unexpected error: {e}')
-    finally:
-        connection.close()
-
-    # Drop table if it already exists
-    if _table_exists(small_table_name, connection):
-        drop_query = f'''
-            DROP TABLE {small_table_name};
-        '''
-        try:
-            connection.execute(text(drop_query))
-        except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
-            raise DatabaseConnectionError(f'Error connecting to database {e}')
-        except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
-            raise QueryExecutionError(f'Error executing query: {e}')
-        except Exception as e:  
-            raise QueryExecutionError(f'Unexpected error: {e}')
-        finally:
-            connection.rollback()
-
-    # Create new table with specified fields
-    quoted_fields = ', '.join([f'"{f}"' for f in fields])
-
-    sql_query = f'''
-        CREATE TABLE {small_table_name} AS
-        SELECT {quoted_fields}
-        FROM {big_table_name};
-    '''
-
-    # Execute & commit changes
-    try:
-        connection.execute(text(sql_query))
-    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
-        raise DatabaseConnectionError(f'Error connecting to database {e}')
-    except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
-        raise QueryExecutionError(f'Error executing query: {e}')
-    except Exception as e:
-        raise QueryExecutionError(f'Unexpected error: {e}')
-    finally:
-        connection.rollback()
-        connection.close
-
-    connection.commit()
-
-    # Close connection
-    connection.close()
 
 def add_fields(table_name, fields, engine):
     """
@@ -282,46 +255,37 @@ def add_fields(table_name, fields, engine):
     print('Adding fields...')
 
 
-    # Open connection
     try:
-        connection = engine.connect()
-    except sqlalchemy_exc.DBAPIError as e: # Handle DB connection error
+        # Open connection
+        with engine.connect() as connection:
+            # Ensure table exists
+            if not _table_exists(table_name, connection):
+                raise TableExistenceError(f'{table_name} does not exist.')
+            # Add fields
+            for field, datatype in fields.items():
+                query = f'''
+                    ALTER TABLE {table_name}
+                    ADD "{field}" {datatype};
+                    '''
+                connection.execute(text(query))
+                print(f"Column {field} added successfully.")
+            connection.commit()
+    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
+    except sqlalchemy_exc.SQLAlchemyError as e:  # Handle query execution error
+        raise QueryExecutionError(f'Error executing query: {e}')
     except Exception as e:
         raise DatabaseConnectionError(f'Unexpected error: {e}')
-    finally:
-        connection.close()
-
-    # Ensure table exists
-    if not _table_exists(table_name, connection):
-        connection.close()
-        raise TableExistenceError(f'{table_name} does not exist.')
-
-    for field, datatype in fields.items():
-        sql = f"""
-            ALTER TABLE {table_name}
-            ADD "{field}" {datatype};
-            """
-        try:
-            connection.execute(text(sql))
-            print(f"Column {field} added successfully.")
-        except sqlalchemy_exc.DBAPIError as e:
-            raise DatabaseConnectionError(f'Error connecting to database: {e}')
-        except sqlalchemy_exc.SQLAlchemyError as e:
-            raise QueryExecutionError(f'Error executing query: {e}')
-        except Exception as e:
-            raise QueryExecutionError(f'Unexpected error: {e}')
-        finally:
-            connection.rollback()
-            connection.close()
-
-    # Commit changes
-    connection.commit()
-
-    # Close connection
-    connection.close()
 
 def _table_exists(table_name, connection):
+    """
+    Checks if passed table exists.
+
+    :param table_name: (str) -> the table name
+    :param connection: (SQLAlchemy.connection) -> the database connection
+
+    :return: (bool) -> indicates table existence
+    """
 
     check_query = f'''
         SELECT to_regclass('{table_name}');
@@ -334,11 +298,37 @@ def _table_exists(table_name, connection):
         raise DatabaseConnectionError(f'Error connecting to database {e}')
     except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
         raise QueryExecutionError(f'Error executing query: {e}')
-    except Exception as e:                    # Catch-all
+    except Exception as e:                      # Catch-all
         raise QueryExecutionError(f'Unexpected error: {e}')
     finally:
         connection.rollback()
 
+
+"""
+Get data from database
+"""
+def get_data(sql_query, engine):
+    """
+    Executes SELECT statement to get data from database.
+
+    :param sql_query: (str) -> the SQL query
+    :param engine: (SQLAlchemy.engine) -> the database engine
+    """
+
+
+    try:
+        # Open connection
+        with engine.connect() as connection:
+            # Execute the SQL query and fetch the results into a Pandas DataFrame
+            result = connection.execute(text(sql_query))
+            data = pd.DataFrame(result.fetchall(), columns=result.keys())
+            return data
+    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        raise DatabaseConnectionError(f'Error connecting to database {e}')
+    except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
+        raise QueryExecutionError(f'Error executing query: {e}')
+    except Exception as e:                      # Catch-all
+        raise QueryExecutionError(f'Unexpected error: {e}')
 
 """
 Display database
@@ -353,45 +343,41 @@ def view_database(engine):
     :return: None							
     """
     
-    # Estabish connection with database
-    connection = engine.connect()
+    # Open connection
+    with engine.connect() as connection:
+        # Retrieve metadata about database
+        metadata = MetaData()
+        metadata.reflect(bind=engine)
 
-    # Retrieve metadata about database
-    metadata = MetaData()
-    metadata.reflect(bind=engine)
+        # Create a new session
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
-    # Create a new session
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
-    for table_name in metadata.tables.keys():
-        print(f"\n=== Contents of table '{table_name}': ===\n")
+        for table_name in metadata.tables.keys():
+            print(f"\n=== Contents of table '{table_name}': ===\n")
         
-        # Load table
-        table = Table(table_name, metadata, autoload=True, autoload_with=engine)
-        
-        # Query table
-        query = session.query(table)
-        results = query.all()
+            # Load table
+            table = Table(table_name, metadata, autoload=True, autoload_with=engine)
+            
+            # Query table
+            query = session.query(table)
+            results = query.all()
 
-        # Create PrettyTable instance with columns as field names
-        pretty_table = PrettyTable([column.key for column in table.columns])
+            # Create PrettyTable instance with columns as field names
+            pretty_table = PrettyTable([column.key for column in table.columns])
 
-        # Add rows to PrettyTable instance
-        for row in results:
-            pretty_table.add_row(row)
+            # Add rows to PrettyTable instance
+            for row in results:
+                pretty_table.add_row(row)
 
-        # Print table with data
-        print(pretty_table)
+            # Print table with data
+            print(pretty_table)
 
-        # Add a separator for better readability between tables
-        print("\n" + "="*60 + "\n")
+            # Add a separator for better readability between tables
+            print("\n" + "="*60 + "\n")
        
-    # Close session
-    session.close()
-
-    # Close connection
-    connection.close()
+        # Close session
+        session.close()
 
 
 """
