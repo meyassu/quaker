@@ -4,7 +4,7 @@ from shapely.geometry import Point
 
 
 from qindex import build_rtree, _set_rtree_properties
-from database import get_neon_engine, get_data
+from database import get_neon_engine, get_data, push_psql
 
 
 """
@@ -111,6 +111,9 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
             offset += batch_size
 
         batch_results = pd.DataFrame(batch_results, columns=['Province', 'Country'])
+        push_psql(batch_results, table_name, if_exists='append', engine=engine)
+        print(batch_results)
+        quit()
 
 
 
