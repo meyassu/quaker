@@ -24,7 +24,7 @@ load_dotenv()
 """
 Establish database connection
 """
-def get_neon_connection_str():
+def get_neon_engine():
     """
     Get Neon connection string.
 
@@ -38,11 +38,20 @@ def get_neon_connection_str():
     port = os.getenv('NEON_PG_PORT')
     database = os.getenv('NEON_PG_DATABASE')
 
-    connection_string = f'postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}?sslmode=require'
+    connection_url = f'postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}?sslmode=require'
 
-    return connection_string
+    try:
+        engine = create_engine(connection_url)
+    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection issues
+        raise DatabaseConnectionError(f'Error connecting to database: {e}')
+    except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy error
+        raise DatabaseConnectionError(f'Error creating SQLAlchemy engine: {e}')
+    except Exception as e:                      # Catch-all
+        raise DatabaseConnectionError(f'Unexpected error: {e}')
 
-def get_psql_engine(host, port, username, dbname, region):
+    return engine
+
+def get_rds_engine(host, port, username, dbname, region):
     """
     Connects to PSQL database on AWS RDS with SQLAlchemy Engine.
     """
@@ -87,6 +96,7 @@ def get_psql_engine(host, port, username, dbname, region):
 
 
 
+
 """
 Initialize database
 """
@@ -108,15 +118,15 @@ def init_database_neon(earthquake_data_fpath, big_table_name, small_table_name, 
     earthquake_data = load_earthquake_data_local(earthquake_data_fpath)
 
 
-    # Get PSQL engine
-    psql_engine = create_engine(get_neon_connection_str())
-    push_psql(data=earthquake_data, table_name=big_table_name, engine=psql_engine)
+    # Get Neon engine
+    neon_engine = get_neon_engine
+    push_psql(data=earthquake_data, table_name=big_table_name, engine=neon_engine)
 
     # Filter original table
-    filter_table(small_table_name=small_table_name, big_table_name=big_table_name, fields=small_fields, engine=psql_engine)
+    filter_table(small_table_name=small_table_name, big_table_name=big_table_name, fields=small_fields, engine=neon_engine)
 
     # Add geographic fields to filtered table
-    add_fields(table_name="earthquakes", fields=extra_fields, engine=psql_engine)
+    add_fields(table_name="earthquakes", fields=extra_fields, engine=neon_engine)
 
     return True
 
@@ -141,25 +151,25 @@ def init_database_aws(bucket_name, data_file_key, data_local_fpath, big_table_na
     # Load earthquake data
     earthquake_data = load_earthquake_data_aws(bucket_name, data_file_key, data_local_fpath)
 
-    # Get PSQL engine
+    # Get RDS engine
     host = os.getenv('PG_HOST')
     port = os.getenv('PG_PORT')
     username = os.getenv('PG_USERNAME')
     dbname = os.getenv('PG_DBNAME')
     region = os.getenv('REGION')
 
-    psql_engine = get_psql_engine(host, port, username, dbname, region)
+    rds_engine = get_rds_engine(host, port, username, dbname, region)
 	
 
     # Create table in database
-    push_psql(data=earthquake_data, table_name=big_table_name, engine=psql_engine)
+    push_psql(data=earthquake_data, table_name=big_table_name, engine=rds_engine)
 
 
     # Filter original table
-    filter_table(small_table_name=small_table_name, big_table_name=big_table_name, fields=small_fields, engine=psql_engine)
+    filter_table(small_table_name=small_table_name, big_table_name=big_table_name, fields=small_fields, engine=rds_engine)
 
     # Add geographic fields to filtered table
-    add_fields(table_name=small_table_name, fields=extra_fields, engine=psql_engine)
+    add_fields(table_name=small_table_name, fields=extra_fields, engine=rds_engine)
     
     return True
 
