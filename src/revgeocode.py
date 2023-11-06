@@ -2,6 +2,7 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 
+
 from qindex import build_rtree, _set_rtree_properties
 from database import get_neon_engine, get_data
 
@@ -73,6 +74,8 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
     :return: None
     """
 
+    print('Reverse geocoding coordinates...')
+
     offset = 0
     while True:
         # Get batch
@@ -80,7 +83,7 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
         batch = get_data(query, engine)
         if batch.empty: # TEST THIS
             return
-        batch_results = pd.DataFrame(columns=['Province', 'Country'])
+        batch_results = []
         # Reverse geocode points in batch
         for index, row in batch.iterrows():
             # Get coordinate point
@@ -103,15 +106,11 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
                 country = result[1]
             
             # Add results to batch_results
-            batch_results = batch_results.append({'Province': province, 'Country': country}, ignore_index=True)
+            batch_results.append({'Province': province, 'Country': country})
 
             offset += batch_size
 
-            print(batch_results)
-            print(type(batch_results))
-            quit()
-
-        quit()
+        batch_results = pd.DataFrame(batch_results, columns=['Province', 'Country'])
 
 
 
@@ -148,13 +147,13 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
 
 
 # Parallel GeoDataFrames containing both country/ocean data
-# boundaries_gdf = gpd.read_file('../data/boundaries.geojson')
-# mbrs_gdf = gpd.read_file('../data/mbrs.geojson')
+boundaries_gdf = gpd.read_file('../data/boundaries.geojson')
+mbrs_gdf = gpd.read_file('../data/mbrs.geojson')
 
-# rtree_properties = _set_rtree_properties()
-# rtree_obj = build_rtree(mbrs_gdf, rtree_properties)
+rtree_properties = _set_rtree_properties()
+rtree_obj = build_rtree(mbrs_gdf, rtree_properties)
 
 engine = get_neon_engine()
 
-reverse_geocode(None, None, table_name='earthquakes', batch_size=10, engine=engine)
+reverse_geocode(rtree_obj=rtree_obj, boundaries_gdf=boundaries_gdf, table_name='earthquakes', batch_size=10, engine=engine)
 
