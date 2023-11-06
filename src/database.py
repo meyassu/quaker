@@ -277,6 +277,37 @@ def add_fields(table_name, fields, engine):
     except Exception as e:
         raise DatabaseConnectionError(f'Unexpected error: {e}')
 
+def drop_fields(table_name, fields, engine):
+    """
+    Drop fields from database.
+
+    :param table_name: (str) -> the name of the table
+    :param fields: (list<st>) -> the fields that need to be dropped
+    :param engine: (SQLAlchemy.engine) -> the database engine 
+    """
+
+    try:
+        # Open connection
+        with engine.connect() as connection:
+            # Ensure table exists
+            if not _table_exists(table_name, connection):
+                raise TableExistenceError(f'{table_name} does not exist.')
+            quoted_fields = ', '.join([f'"{f}"' for f in fields])
+            query = f'''
+                    ALTER TABLE {table_name}
+                    DROP {quoted_fields};
+                    '''
+            connection.execute(text(query))
+            print(f"Column {fields} deleted successfully.")
+            connection.commit()
+    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        raise DatabaseConnectionError(f'Error connecting to database: {e}')
+    except sqlalchemy_exc.SQLAlchemyError as e:  # Handle query execution error
+        raise QueryExecutionError(f'Error executing query: {e}')
+    except Exception as e:
+        raise DatabaseConnectionError(f'Unexpected error: {e}')
+
+
 def _table_exists(table_name, connection):
     """
     Checks if passed table exists.
@@ -307,7 +338,7 @@ def _table_exists(table_name, connection):
 """
 Get data from database
 """
-def get_data(sql_query, engine):
+def get_data(query, engine):
     """
     Executes SELECT statement to get data from database.
 
@@ -320,7 +351,7 @@ def get_data(sql_query, engine):
         # Open connection
         with engine.connect() as connection:
             # Execute the SQL query and fetch the results into a Pandas DataFrame
-            result = connection.execute(text(sql_query))
+            result = connection.execute(text(query))
             data = pd.DataFrame(result.fetchall(), columns=result.keys())
             return data
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
@@ -422,7 +453,14 @@ def load_earthquake_data_aws(bucket_name, file_key, local_fpath):
 
 
 
+engine = get_neon_engine()
 
 # bucket_name = 'quakerbucket'
 # data_file_key= 'earthquake_data.csv'
 # data_local_fpath = '../data/earthquake_data.csv'
+
+
+
+
+
+
