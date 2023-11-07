@@ -120,7 +120,7 @@ def init_database_neon(earthquake_data_fpath, big_table_name, small_table_name, 
 
     # Get Neon engine
     neon_engine = get_neon_engine
-    push_psql(data=earthquake_data, table_name=big_table_name, engine=neon_engine)
+    create_table(data=earthquake_data, table_name=big_table_name, engine=neon_engine)
 
     # Filter original table
     filter_table(small_table_name=small_table_name, big_table_name=big_table_name, fields=small_fields, engine=neon_engine)
@@ -162,7 +162,7 @@ def init_database_aws(bucket_name, data_file_key, data_local_fpath, big_table_na
 	
 
     # Create table in database
-    push_psql(data=earthquake_data, table_name=big_table_name, engine=rds_engine)
+    create_table(data=earthquake_data, table_name=big_table_name, engine=rds_engine)
 
 
     # Filter original table
@@ -178,7 +178,7 @@ def init_database_aws(bucket_name, data_file_key, data_local_fpath, big_table_na
 """""
 Modify database
 """
-def push_psql(data, table_name, if_exists, engine):
+def create_table(data, table_name, if_exists, engine):
     """
     Pushes data to PSQL database on RDS instance.
 
@@ -187,7 +187,7 @@ def push_psql(data, table_name, if_exists, engine):
     :param engine: (sqlalchemy.engine) -> the SQLAlchemy engine
     """
 
-    print('Pushing data to PSQL database...')
+    print('Creating table on PSQL database...')
 
     if not isinstance(data, pd.DataFrame):
         raise DataPushError('Provided data is not a pandas DataFrame')
@@ -453,10 +453,6 @@ def load_earthquake_data_aws(bucket_name, file_key, local_fpath):
 
     return earthquake_data
 
-
-
-neon_engine = get_neon_engine()
-push_psql(data=pd.DataFrame([{'Province': 'BC', 'Country': 'Canada'}]), table_name='earthquakes', if_exists='append', engine=neon_engine)
 
 
 # bucket_name = 'quakerbucket'
