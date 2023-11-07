@@ -364,6 +364,31 @@ def transfer_data(dest_table_name, src_table_name, fields, engine):
     except Exception as e:                      # Catch-all
         raise QueryExecutionError(f'Unexpected error: {e}')
 
+def clear_table(table_name, engine):
+    """
+    Clears table.
+
+    :param table_name: (str) -> the target table
+    :param engine: (SQLAlchemy.engine) -> the engine
+
+    :return: (bool) -> indicates whether operation was sucessful
+    """
+
+    try:
+        with engine.connect() as connection:
+            clear_query = text(f"DELETE FROM {table_name};")
+            connection.execute(clear_query)
+            connection.commit()
+            return True
+    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        raise DatabaseConnectionError(f'Error connecting to database {e}')
+    except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
+        raise QueryExecutionError(f'Error executing query: {e}')
+    except Exception as e:                      # Catch-all
+        raise QueryExecutionError(f'Unexpected error: {e}')
+    
+
+    
 
 """
 Get data from database
