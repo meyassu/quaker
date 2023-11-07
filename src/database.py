@@ -26,9 +26,9 @@ Establish database connection
 """
 def get_neon_engine():
     """
-    Get Neon connection string.
+    Get Neon engine.
 
-    :return: None
+    :return: (SQLAlchemy.engine) -> the engine
     """
 
     # Get credentials from .env file
@@ -210,7 +210,7 @@ def filter_table(small_table_name, big_table_name, fields, engine):
     :param fields: (list) -> fields to include in the new table
     :param engine: (SqlAlchemy.engine) -> object for remote database interaction
 
-    :return: None
+    :return: (bool) -> indicates whether operation was sucessful
     """
 
     print('Filtering table...')
@@ -227,13 +227,14 @@ def filter_table(small_table_name, big_table_name, fields, engine):
             
             # Create new table with specified fields
             quoted_fields = ', '.join([f'"{f}"' for f in fields])
-            sql_query = f'''
+            create_query = f'''
                 CREATE TABLE {small_table_name} AS
                 SELECT {quoted_fields}
                 FROM {big_table_name};
             '''
-            connection.execute(text(sql_query))
+            connection.execute(text(create_query))
             connection.commit()
+            return True
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
     except sqlalchemy_exc.SQLAlchemyError as e: # Handle query execution error
@@ -249,11 +250,10 @@ def add_fields(table_name, fields, engine):
     :param fields: (dict <K: field_name, V: datatype>) -> the fields
     :param engine: (SQLAlchemy.engine) -> the engine
 
-    :return: None
+    :return: (bool) -> indicates whether operation was sucessful
     """
 
     print('Adding fields...')
-
 
     try:
         # Open connection
@@ -263,13 +263,14 @@ def add_fields(table_name, fields, engine):
                 raise TableExistenceError(f'{table_name} does not exist.')
             # Add fields
             for field, datatype in fields.items():
-                query = f'''
+                add_query = f'''
                     ALTER TABLE {table_name}
                     ADD "{field}" {datatype};
                     '''
-                connection.execute(text(query))
+                connection.execute(text(add_query))
                 print(f"Column {field} added successfully.")
             connection.commit()
+            return True
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
     except sqlalchemy_exc.SQLAlchemyError as e:  # Handle query execution error
@@ -295,13 +296,12 @@ def drop_fields(table_name, fields, engine):
             
             # Drop fields
             for field in fields:
-                query = f'''
+                drop_query = f'''
                     ALTER TABLE {table_name}
                     DROP "{field}";
                     '''
-                connection.execute(text(query))
+                connection.execute(text(drop_query))
                 print(f"Column {field} dropped successfully")
-            
             connection.commit()
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
@@ -334,8 +334,35 @@ def _table_exists(table_name, connection):
         raise QueryExecutionError(f'Error executing query: {e}')
     except Exception as e:                      # Catch-all
         raise QueryExecutionError(f'Unexpected error: {e}')
-    finally:
-        connection.rollback()
+
+
+def transfer_data(dest_table_name, src_table_name, fields, engine):
+    """
+    Transfers data between tables.
+
+    :param dest_table_name: (str) -> the destination table name
+    :param src_table_name: (str) -> the source table name
+    :param fields: (list<str>) -> the fields to be transferred
+    :param engine: (SQLAlchemy.engine) -> the engine
+
+    :return: (bool) -> indicates whether operation was sucessful
+    """
+    try:
+        with engine.connect() as connection:
+            quoted_fields = ', '.join([f'"{f}"' for f in fields])
+            transfer_query = f'''
+                    INSERT INTO {dest_table_name} ({quoted_fields})
+                    SELECT {quoted_fields} FROM {src_table_name};
+                    '''
+            connection.execute(text(transfer_query))
+            connection.commit()
+            return True
+    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        raise DatabaseConnectionError(f'Error connecting to database {e}')
+    except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
+        raise QueryExecutionError(f'Error executing query: {e}')
+    except Exception as e:                      # Catch-all
+        raise QueryExecutionError(f'Unexpected error: {e}')
 
 
 """
@@ -348,7 +375,6 @@ def get_data(query, engine):
     :param sql_query: (str) -> the SQL query
     :param engine: (SQLAlchemy.engine) -> the database engine
     """
-
 
     try:
         # Open connection
