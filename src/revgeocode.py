@@ -44,7 +44,7 @@ def pip(query_point, possible_region_boundaries, name_field='name', admin_field=
     if enclosing_boundary == None:
         enclosing_boundary = closest_boundary
 
-        
+
 
 def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, staging_table_name, engine):
     """
@@ -83,15 +83,7 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, staging_t
             possible_region_boundaries = possible_region_boundaries.sort_values(by='TERRAIN', ascending=True)
             # print(f'Possible regions:\n{possible_region_boundaries}')
             # Run Point-in-Polygon on coordinate
-            result = pip(coordinates, possible_region_boundaries)
-            province = None
-            country = None
-            # Find closest region if PiP returned null 
-            if pd.isna(result):
-                province, country = find_closest_region(coordinates, possible_region_boundaries_idx, boundaries_gdf)
-            else:
-                province = result[0]
-                country = result[1]
+            province, country = pip(coordinates, possible_region_boundaries)
             # print(f'Result: ({province}, {country})')
             # print('\n-----------------------------------------------------------------------------------------------------\n')
             # Add results to batch_results
