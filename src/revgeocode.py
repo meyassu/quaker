@@ -3,8 +3,9 @@ import geopandas as gpd
 from shapely.geometry import Point
 
 
-from qindex import build_rtree, _set_rtree_properties
-from database import get_neon_engine, get_data, push_psql
+from qindex import build_rtree
+from database import get_neon_engine, get_data, write_table, transfer_data
+
 
 
 """
@@ -20,48 +21,32 @@ def pip(query_point, possible_region_boundaries, name_field='name', admin_field=
 
     :return: (str) -> the region of the given point
     """
+    
+    enclosing_boundary = None
 
-    for i, region_boundary in possible_region_boundaries.iterrows():
-        if query_point.within(region_boundary['geometry']):
-            region = region_boundary[name_field]
-            admin = region_boundary[admin_field]
-            return region, admin
-
-    return None
-
-
-def find_closest_region(query_point, possible_region_boundaries_idx, boundaries_gdf, name_field='name', admin_field='admin'):
-    """
-    Finds the closest region to the passed point if PiP fails.
-
-    :param query_point: (Shapely.Point) -> the given point
-    :param possible_regions_idx: (list(int)) -> the indices of the candidate regions
-    :param boundaries_gdf: (gpd.GeoDataFrame) -> the precise boundaries of all the regions
-
-    :return: (str) -> the closest region to the given point
-    """
-
-    print(f'Point-in-Polygon failed, finding closest candidate region to {query_point}...')
-
-    closest_region = None
+    closest_boundary = None
     min_distance = float('inf')
 
-    for region_id in possible_region_boundaries_idx:
-        boundary_row = boundaries_gdf.loc[region_id]
-        distance = query_point.distance(boundary_row['geometry'])
-        # print(f'Distance to {boundary_row[name_field]}: {distance}')
+    for i, region_boundary in possible_region_boundaries.iterrows():
+
+        # Keep track of closest boundary in case query_point misses all boundaries
+        distance = query_point.distance(region_boundary['geometry'])
         if distance < min_distance:
+            closest_boundary = region_boundary
             min_distance = distance
-            closest_region = boundary_row[name_field]
-            admin = boundary_row[admin_field]
-        # print(f'Current closest region: {closest_region}')
-        # print('------------------------------------------------------------------------')
 
-    return closest_region, admin
+        if query_point.within(region_boundary['geometry']):
+            enclosing_boundary = region_boundary
+            break
 
+    
+    # Map query_point to closest boundary if it misses all existing boundaries
+    if enclosing_boundary == None:
+        enclosing_boundary = closest_boundary
 
+        
 
-def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
+def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, staging_table_name, engine):
     """
     Reverse geocode points and write results back to database.
 
@@ -78,6 +63,7 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
 
     offset = 0
     while True:
+        print(f'Processing batch {offset / batch_size}...')
         # Get batch
         query = f'SELECT "Latitude", "Longitude" FROM {table_name} LIMIT {batch_size} OFFSET {offset};'
         batch = get_data(query, engine)
@@ -90,10 +76,12 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
             longitude = row['Longitude']
             latitude = row['Latitude']
             coordinates = Point(longitude, latitude)
+            # print(f'Reverse geocoding {coordinates}...')
             # Narrow down options with R*-tree
             possible_region_boundaries_idx = list(rtree_obj.intersection(coordinates.bounds))
             possible_region_boundaries = boundaries_gdf.loc[possible_region_boundaries_idx]
             possible_region_boundaries = possible_region_boundaries.sort_values(by='TERRAIN', ascending=True)
+            # print(f'Possible regions:\n{possible_region_boundaries}')
             # Run Point-in-Polygon on coordinate
             result = pip(coordinates, possible_region_boundaries)
             province = None
@@ -104,48 +92,22 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
             else:
                 province = result[0]
                 country = result[1]
-            
+            # print(f'Result: ({province}, {country})')
+            # print('\n-----------------------------------------------------------------------------------------------------\n')
             # Add results to batch_results
             batch_results.append({'Province': province, 'Country': country})
-
-            offset += batch_size
-
+        
+        # Package batch_results into DataFrame
         batch_results = pd.DataFrame(batch_results, columns=['Province', 'Country'])
-        push_psql(batch_results, table_name, if_exists='append', engine=engine)
-        print(batch_results)
-        quit()
+
+        # Write batch_results to staging table
+        write_table(batch_results, table_name=staging_table_name, if_exists='append', engine=engine)
+        
+        # Increment offset
+        offset += batch_size
 
 
 
-
-
-
-
-
-
-
-
-
-
-    # for data in test_data:
-    #     query_point = data[0]
-    #     loc_truth = data[1]
-    #     print(f'Processing {query_point} in {loc_truth}...')
-    #     possible_region_boundaries_idx = list(rtree_obj.intersection(query_point.bounds))
-    #     possible_region_boundaries = boundaries_gdf.loc[possible_region_boundaries_idx]
-    #     possible_region_boundaries = possible_region_boundaries.sort_values(by='TERRAIN', ascending=True)
-    #     print(f'Possible regions:\n{possible_region_boundaries}')
-    #     result = pip(query_point, possible_region_boundaries)
-    #     rregion = None
-    #     admin = None
-    #     if pd.isna(result):
-    #         rregion, admin = find_closest_region(query_point, possible_region_boundaries_idx, boundaries_gdf)
-    #     else:
-    #         rregion = result[0]
-    #         admin = result[1]
-
-    #     print(f'({region}, {admin})')
-    #     print('---------------------------------------------------------------------')
 
 
 
@@ -153,10 +115,9 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, engine):
 boundaries_gdf = gpd.read_file('../data/boundaries.geojson')
 mbrs_gdf = gpd.read_file('../data/mbrs.geojson')
 
-rtree_properties = _set_rtree_properties()
-rtree_obj = build_rtree(mbrs_gdf, rtree_properties)
+rtree_obj = build_rtree(mbrs_gdf)
 
 engine = get_neon_engine()
 
-reverse_geocode(rtree_obj=rtree_obj, boundaries_gdf=boundaries_gdf, table_name='earthquakes', batch_size=10, engine=engine)
+reverse_geocode(rtree_obj=rtree_obj, boundaries_gdf=boundaries_gdf, table_name='earthquakes', batch_size=1000, staging_table_name='staging', engine=engine)
 
