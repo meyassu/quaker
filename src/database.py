@@ -187,7 +187,7 @@ def write_table(data, table_name, if_exists, engine):
     :param engine: (sqlalchemy.engine) -> the SQLAlchemy engine
     """
 
-    print('Creating table on PSQL database...')
+    print(f'Writing to {table_name} on PSQL database...')
 
     if not isinstance(data, pd.DataFrame):
         raise DataPushError('Provided data is not a pandas DataFrame')
@@ -347,6 +347,8 @@ def transfer_data(dest_table_name, src_table_name, fields, engine):
 
     :return: (bool) -> indicates whether operation was sucessful
     """
+
+    print(f'Tranferring {fields} from {src_table_name} to {dest_table_name}...')
     try:
         with engine.connect() as connection:
             quoted_fields = ', '.join([f'"{f}"' for f in fields])
@@ -356,6 +358,7 @@ def transfer_data(dest_table_name, src_table_name, fields, engine):
                     '''
             connection.execute(text(transfer_query))
             connection.commit()
+            view_database(tables=['staging', 'earthquakes'], engine=engine)
             return True
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
         raise DatabaseConnectionError(f'Error connecting to database {e}')
@@ -388,7 +391,6 @@ def clear_table(table_name, engine):
         raise QueryExecutionError(f'Unexpected error: {e}')
     
 
-    
 
 """
 Get data from database
@@ -418,7 +420,7 @@ def get_data(query, engine):
 """
 Display database
 """
-def view_database(engine):
+def view_database(tables, engine):
     """
     Visualize all tables in the given database.
 
@@ -438,7 +440,7 @@ def view_database(engine):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        for table_name in metadata.tables.keys():
+        for table_name in tables:
             print(f"\n=== Contents of table '{table_name}': ===\n")
         
             # Load table
@@ -457,6 +459,8 @@ def view_database(engine):
 
             # Print table with data
             print(pretty_table)
+            with open(f'{table_name}.txt', 'w') as f:
+                f.write(pretty_table.get_string())
 
             # Add a separator for better readability between tables
             print("\n" + "="*60 + "\n")
@@ -507,6 +511,10 @@ def load_earthquake_data_aws(bucket_name, file_key, local_fpath):
 # bucket_name = 'quakerbucket'
 # data_file_key= 'earthquake_data.csv'
 # data_local_fpath = '../data/earthquake_data.csv'
+
+# neon_engine = get_neon_engine()
+# clear_table('staging', engine=neon_engine)
+# view_database(tables=['staging'], engine=neon_engine)
 
 
 
