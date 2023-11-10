@@ -37,7 +37,7 @@ def pip(query_point, possible_region_boundaries, name_field='name', admin_field=
     """
     
     enclosing_boundary = gpd.GeoDataFrame(columns=['name', 'admin', 'TERRAIN', 'geometry'], geometry='geometry')
-
+    
     closest_boundary = gpd.GeoDataFrame(columns=['name', 'admin', 'TERRAIN', 'geometry'], geometry='geometry')
     min_distance = float('inf')
 
@@ -87,12 +87,12 @@ def nearest_coastline(query_point, coastline_boundaries):
     nearest_coastline_boundary = None
 
     # Search for nearest coastline
-    for coastline in coastline_boundaries:
+    for i, coastline in coastline_boundaries.iterrows():
         geom = coastline['geometry']
         
         # Go through all constituent polygons if geo is MultiPolygon
         if isinstance(geom, MultiPolygon):
-            for polygon in geom:
+            for polygon in geom.geoms:
                 # Compute distance to nearest point on coastline
                 nearest_point = nearest_points(query_point, polygon)[1]
                 dist = _distance_km(query_point, nearest_point)
