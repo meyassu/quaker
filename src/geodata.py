@@ -2,7 +2,15 @@ import pandas as pd
 import geopandas as gpd
 from pyproj import CRS
 
-GLOBAL_CRS = CRS("EPSG:4326") 
+GLOBAL_CRS = CRS("EPSG:4326")
+
+"""
+TODO
+- model maritime territorial control w/ Shapely.Polygon.buffer
+"""
+
+
+
 
 def compute_mbrs(boundaries_gdf, output_fpath, name_field='name'):
     """
@@ -43,8 +51,6 @@ def _shapefile_to_geojson(boundaries_shp_fpath, output_fpath):
 
     boundaries_gdf = gpd.read_file(boundaries_shp_fpath)
     boundaries_gdf.to_file(output_fpath, driver='GeoJSON')
-
-
 
 
 
