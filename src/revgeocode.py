@@ -1,6 +1,7 @@
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point, Polygon, MultiPolygon
+
+from shapely.geometry import Point, MultiPolygon
 from shapely.ops import nearest_points
 import math
 
@@ -35,9 +36,9 @@ def pip(query_point, possible_region_boundaries, name_field='name', admin_field=
     :return: (str, str) -> the province of the given point, the country of the given point
     """
     
-    enclosing_boundary = None
+    enclosing_boundary = gpd.GeoDataFrame(columns=['name', 'admin', 'TERRAIN', 'geometry'], geometry='geometry')
 
-    closest_boundary = None
+    closest_boundary = gpd.GeoDataFrame(columns=['name', 'admin', 'TERRAIN', 'geometry'], geometry='geometry')
     min_distance = float('inf')
 
     for i, region_boundary in possible_region_boundaries.iterrows():
@@ -55,7 +56,7 @@ def pip(query_point, possible_region_boundaries, name_field='name', admin_field=
 
     
     # Map query_point to closest boundary if it misses all existing boundaries
-    if enclosing_boundary == None:
+    if enclosing_boundary.empty:
         enclosing_boundary = closest_boundary
 
     # Map ocean query points to nearby land masses, if any
