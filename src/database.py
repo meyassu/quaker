@@ -1,4 +1,5 @@
 import pandas as pd
+import geopandas as gpd
 
 from sqlalchemy import create_engine, MetaData, Table, text
 from sqlalchemy.engine import URL
@@ -24,12 +25,14 @@ load_dotenv()
 """
 Establish database connection
 """
-def get_neon_engine():
+def get_engine_neon():
     """
-    Get Neon engine.
+    Connects to PSQL database on Neon with SQLAlchemy engine using credentials from .env file.
 
     :return: (SQLAlchemy.engine) -> the engine
     """
+
+    print('Connecting to Neon database...')
 
     # Get credentials from .env file
     user = os.getenv('NEON_PG_USER')
@@ -51,12 +54,21 @@ def get_neon_engine():
 
     return engine
 
-def get_rds_engine(host, port, username, dbname, region):
+def get_engine_rds():
     """
-    Connects to PSQL database on AWS RDS with SQLAlchemy Engine.
+    Connects to PSQL database on AWS RDS with SQLAlchemy Engine using credentials from .env file.
+
+    :return: (SQLAlchemy.engine) -> the engine
     """
 
-    print('Connecting to remote PSQL database...')
+    print('Connecting to RDS instance...')
+
+    region = os.getenv('REGION')
+    host = os.getenv('RDS_PG_HOST')
+    port = os.getenv('RDS_PG_PORT')
+    username = os.getenv('RDS_PG_USER')
+    dbname = os.getenv('RDS_PG_DATABASE')
+    cert_fpath = os.getenv('RDS_PG_CERT_FPATH')
 
     try:
         # Generate an auth token
@@ -81,7 +93,7 @@ def get_rds_engine(host, port, username, dbname, region):
         host=host,
         port=port,
         database=dbname,
-        query={'sslmode': 'verify-full', 'sslrootcert': '/home/ec2-user/rds-ca-2019-root.pem'})
+        query={'sslmode': 'verify-full', 'sslrootcert': cert_fpath})
 
     try:
         engine = create_engine(connection_url)
@@ -100,7 +112,7 @@ def get_rds_engine(host, port, username, dbname, region):
 """
 Initialize database
 """
-def init_database_neon(earthquake_data_fpath, big_table_name, small_table_name, small_fields, extra_fields):
+def init_database_neon(earthquake_data_fpath, big_table_name, small_table_name, small_fields, location_table_name, location_fields):
     """
     Create PostGreSQL database on Neon platform.
 
@@ -114,24 +126,28 @@ def init_database_neon(earthquake_data_fpath, big_table_name, small_table_name, 
     :return: (bool) -> indicates whether operation was successful
     """
 
+    print('Initializing Neon database...')
+
 	# Load earthquake data
-    earthquake_data = load_earthquake_data_local(earthquake_data_fpath)
+    earthquake_data = load_data_local(earthquake_data_fpath)
 
 
     # Get Neon engine
-    neon_engine = get_neon_engine
-    write_table(data=earthquake_data, table_name=big_table_name, engine=neon_engine)
+    neon_engine = get_engine_neon()
+    write_table(data=earthquake_data, table_name=big_table_name, if_exists='replace', engine=neon_engine)
 
     # Filter original table
     filter_table(small_table_name=small_table_name, big_table_name=big_table_name, fields=small_fields, engine=neon_engine)
 
-    # Add geographic fields to filtered table
-    add_fields(table_name="earthquakes", fields=extra_fields, engine=neon_engine)
+    # Create empty location table
+    location_data = gpd.GeoDataFrame(columns=location_fields, geometry=location_fields[-1])
+    write_table(data=location_data, table_name=location_table_name, if_exists='replace',  engine=neon_engine)
+
 
     return True
 
 
-def init_database_aws(bucket_name, data_file_key, data_local_fpath, big_table_name, small_table_name, small_fields, extra_fields):
+def init_database_rds(bucket_name, data_file_key, data_local_fpath, big_table_name, small_table_name, small_fields, location_table_name, location_fields):
     """
     Initializes PostGreSQL database on AWS RDS instance.
 
@@ -147,9 +163,9 @@ def init_database_aws(bucket_name, data_file_key, data_local_fpath, big_table_na
     :return: (bool) -> indicates whether operation was successful
     """
 
-    print('Initializing database...')
+    print('Initializing RDS instance database...')
     # Load earthquake data
-    earthquake_data = load_earthquake_data_aws(bucket_name, data_file_key, data_local_fpath)
+    earthquake_data = load_data_s3(bucket_name, data_file_key, data_local_fpath)
 
     # Get RDS engine
     host = os.getenv('PG_HOST')
@@ -158,19 +174,21 @@ def init_database_aws(bucket_name, data_file_key, data_local_fpath, big_table_na
     dbname = os.getenv('PG_DBNAME')
     region = os.getenv('REGION')
 
-    rds_engine = get_rds_engine(host, port, username, dbname, region)
+    rds_engine = get_engine_rds(host, port, username, dbname, region)
 	
 
     # Create table in database
-    write_table(data=earthquake_data, table_name=big_table_name, engine=rds_engine)
+    write_table(data=earthquake_data, table_name=big_table_name, if_exists='replace', engine=rds_engine)
 
 
     # Filter original table
     filter_table(small_table_name=small_table_name, big_table_name=big_table_name, fields=small_fields, engine=rds_engine)
 
-    # Add geographic fields to filtered table
-    add_fields(table_name=small_table_name, fields=extra_fields, engine=rds_engine)
-    
+ 
+    # Create empty location table
+    location_data = gpd.GeoDataFrame(columns=location_fields, geometry=location_fields[-1])
+    write_table(data=location_data, table_name=location_table_name, if_exists='replace', engine=rds_engine)
+
     return True
 
 
@@ -187,7 +205,7 @@ def write_table(data, table_name, if_exists, engine):
     :param engine: (sqlalchemy.engine) -> the SQLAlchemy engine
     """
 
-    print(f'Writing to {table_name} on PSQL database...')
+    print(f'Writing to {table_name}...')
 
     if not isinstance(data, pd.DataFrame):
         raise DataPushError('Provided data is not a pandas DataFrame')
@@ -213,7 +231,7 @@ def filter_table(small_table_name, big_table_name, fields, engine):
     :return: (bool) -> indicates whether operation was sucessful
     """
 
-    print('Filtering table...')
+    print(f'Filtering {fields} from {big_table_name} into {small_table_name}...')
 
     try:
         # Open connection
@@ -253,7 +271,7 @@ def add_fields(table_name, fields, engine):
     :return: (bool) -> indicates whether operation was sucessful
     """
 
-    print('Adding fields...')
+    print(f'Adding {fields} to {table_name}...')
 
     try:
         # Open connection
@@ -286,6 +304,8 @@ def drop_fields(table_name, fields, engine):
     :param fields: (list<st>) -> the fields that need to be dropped
     :param engine: (SQLAlchemy.engine) -> the database engine 
     """
+    
+    print(f'Dropping {fields} from {table_name}...')
 
     try:
         # Open connection
@@ -301,7 +321,6 @@ def drop_fields(table_name, fields, engine):
                     DROP "{field}";
                     '''
                 connection.execute(text(drop_query))
-                print(f"Column {field} dropped successfully")
             connection.commit()
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
@@ -349,6 +368,7 @@ def transfer_data(dest_table_name, src_table_name, fields, engine):
     """
 
     print(f'Tranferring {fields} from {src_table_name} to {dest_table_name}...')
+    
     try:
         with engine.connect() as connection:
             quoted_fields = ', '.join([f'"{f}"' for f in fields])
@@ -377,6 +397,8 @@ def clear_table(table_name, engine):
     :return: (bool) -> indicates whether operation was sucessful
     """
 
+    print(f'Clearing {table_name}...')
+
     try:
         with engine.connect() as connection:
             clear_query = text(f"DELETE FROM {table_name};")
@@ -401,7 +423,11 @@ def get_data(query, engine):
 
     :param sql_query: (str) -> the SQL query
     :param engine: (SQLAlchemy.engine) -> the database engine
+    
+    :return: (pd.DataFrame) -> the data
     """
+
+    print(f'Executing SELECT query: {query}...')
 
     try:
         # Open connection
@@ -472,30 +498,18 @@ def view_database(tables, engine):
 """
 Load source files for database
 """
-def load_earthquake_data_local(earthquake_data_fpath):
-    """
-    Loads data.
-
-    :earthquake_data_fpath: (str) -> the filepath
-    """
-
-    print('Loading earthquake data...')
-    try:
-        data = pd.read_csv(earthquake_data_fpath)
-    except Exception as e:
-        raise Exception(f'Error loading earthquake data: {e}')
-
-    return data
-
-
-def load_earthquake_data_aws(bucket_name, file_key, local_fpath):
+def load_data_s3(bucket_name, file_key, local_fpath):
     """
     Loads data from S3 bucket.
 
-    :param earthquake_data_fpath: (str) -> the filepath
+    :param bucket_name: (str) -> the bucket name
+    :param file_key: (str) -> the filename
+    :param local_fpath: (str) -> the local filepath
+    
+    :return: (bool) -> indicates success of operation
     """
 
-    print('Loading earthquake data...')
+    print(f'Loading data from S3 @ {bucket_name}/{file_key}...')
  
     s3 = boto3.client('s3')
 
@@ -504,20 +518,9 @@ def load_earthquake_data_aws(bucket_name, file_key, local_fpath):
     except ClientError as e:
         raise ClientError(f'Error downloading file from S3: {e}')
 
-    earthquake_data = pd.read_csv(local_fpath)
+    return True
 
-    return earthquake_data
-
-# bucket_name = 'quakerbucket'
-# data_file_key= 'earthquake_data.csv'
-# data_local_fpath = '../data/earthquake_data.csv'
-
-# neon_engine = get_neon_engine()
-# clear_table('staging', engine=neon_engine)
-# view_database(tables=['staging'], engine=neon_engine)
-
-
-
-
+def load_data_local(fpath):
+    pass
 
 
