@@ -1,6 +1,5 @@
 import rtree
 from rtree import index
-import geopandas as gpd
 
 """
 Spatial indexing computations
