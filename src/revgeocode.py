@@ -5,9 +5,7 @@ from shapely.geometry import Point, MultiPolygon
 from shapely.ops import nearest_points
 import math
 
-
-from qindex import build_rtree
-from database import get_neon_engine, get_data, write_table, transfer_data
+from database import write_table, get_data
 
 """
 Constants
@@ -141,7 +139,7 @@ def _distance_km(point_a, point_b):
 
     return distance
 
-def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, staging_table_name, engine):
+def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, location_table_name, engine):
     """
     Reverse geocode points and write results back to database.
 
@@ -162,7 +160,7 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, staging_t
         # Get batch
         query = f'SELECT "Latitude", "Longitude" FROM {table_name} LIMIT {batch_size} OFFSET {offset};'
         batch = get_data(query, engine)
-        if batch.empty: # TEST THIS
+        if batch.empty:
             return
         batch_results = []
         # Reverse geocode points in batch
@@ -188,23 +186,9 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, staging_t
         batch_results = pd.DataFrame(batch_results, columns=['Province', 'Country'])
 
         # Write batch_results to staging table
-        write_table(batch_results, table_name=staging_table_name, if_exists='append', engine=engine)
+        write_table(batch_results, table_name=location_table_name, if_exists='append', engine=engine)
         
         # Increment offset
         offset += batch_size
 
-
-
-
-
-
-# Parallel GeoDataFrames containing both country/ocean data
-boundaries_gdf = gpd.read_file('../data/boundaries.geojson')
-mbrs_gdf = gpd.read_file('../data/mbrs.geojson')
-
-rtree_obj = build_rtree(mbrs_gdf)
-
-engine = get_neon_engine()
-
-reverse_geocode(rtree_obj=rtree_obj, boundaries_gdf=boundaries_gdf, table_name='earthquakes', batch_size=1000, staging_table_name='staging', engine=engine)
 
