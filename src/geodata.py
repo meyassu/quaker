@@ -19,6 +19,7 @@ def compute_mbrs(boundaries_gdf, output_fpath, name_field='name'):
     :param boundaries_gdf: (gpd.GeoDataFrame) -> the boundary data
     :param output_fpath: (str) -> the output filepath
     """
+    
     print(f'Computing MBRs...')
 
     mbr_list = []
