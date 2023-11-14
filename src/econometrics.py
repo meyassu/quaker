@@ -18,6 +18,7 @@ Constants
 BASE_URL_RGDP = 'https://fred.stlouisfed.org/searchresults/?st=gdp&t={}&ob=sr&od=desc'
 BASE_URL_UNEMPLOYMENT = 'https://fred.stlouisfed.org/searchresults/?st=unemployment%20rate&t={}&ob=sr&od=desc'
 DOWNLOAD_DIR = '/Users/jadijosh/workspace/quaker/data/econometrics/'
+RGDP_DIR = os.path.join(DOWNLOAD_DIR, 'rGDP')
 
 def setup_driver(download_dir):
     """
@@ -146,6 +147,8 @@ def _get_country_codes(countries):
     Translates plaintext country strings into URL country codes.
 
     :param countries: (list<str>) -> the countries in the database
+
+    :return: (list<str>) -> the country codes
     """
     
     # Record counter-intuitive country codes used by FRED server
@@ -183,6 +186,40 @@ def _get_country_codes(countries):
             country_codes.append(code)
 
     return country_codes
+
+
+def consolidate_rgdp_data(filename):
+    """
+    Consolidate country-specific rGDP data into a single dataframe.
+    Save as .CSV to RGDP_DIR.
+
+    :param filename: (str) -> filename of CSV
+
+    :return: (pd.DataFrame) -> the dataframe with all the rGDP data
+    """
+
+    # Consolidate rGDP data into this dataframe
+    rgdp_data = pd.DataFrame(columns=['Country', 'rGDP', 'Year'])
+   
+    # Restructure each country-level rGDP dataframe to match rgdp_data
+    for filename in os.listdir(RGDP_DIR):
+        if filename.endswith('.csv'):
+            country = filename.split('_')[0]
+            
+            country_rgdp_data = pd.read_csv(os.path.join(RGDP_DIR, filename))
+
+            country_rgdp_data.rename(columns={country_rgdp_data.columns[1]: 'rGDP'}, inplace=True)
+            country_rgdp_data['Year'] = pd.to_datetime(country_rgdp_data['DATE']).dt.year
+            country_rgdp_data['Country'] = country
+
+            country_rgdp_data = country_rgdp_data[['Country', 'rGDP', 'Year']]
+            
+            rgdp_data = pd.concat([rgdp_data, country_rgdp_data], ignore_index=True)
+
+    # Save the consolidated DataFrame to a new CSV file
+    rgdp_data.to_csv(os.path.join(RGDP_DIR, filename), index=False)
+
+    return rgdp_data
 
 
 
