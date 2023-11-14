@@ -61,9 +61,9 @@ def get_rgdp_data(country_codes, engine, driver):
 
     keywords_hierarchy = ['Real GDP at Constant National Prices', 'Real Gross Domestic Product for',' Gross Domestic Product for', 'GDP']
 
-    download_success = 0
-    for c in country_codes:
-        print(f'Downloading file for {c}...')
+    
+    for i, c in enumerate(country_codes):
+        print(f'Downloading file for {c}... ({i} / {len(country_codes)})')
         
         # Go to specific country data page
         url = BASE_URL_RGDP.format(c)
@@ -119,10 +119,7 @@ def get_rgdp_data(country_codes, engine, driver):
 
         # Rename file
         os.rename(temp_fpath, downloaded_fpath)
-        download_success += 1
         print(f'Downloaded file for {c}: {downloaded_fpath}\n')
-    
-    print(f'Succesfully downloaded rGDP data for {download_success} / {len(country_codes)} countries')
 
     return True
         
@@ -188,7 +185,7 @@ def _get_country_codes(countries):
     return country_codes
 
 
-def consolidate_rgdp_data(filename):
+def consolidate_rgdp_data(filename, nfiles):
     """
     Consolidate country-specific rGDP data into a single dataframe.
     Save as .CSV to RGDP_DIR.
@@ -198,12 +195,16 @@ def consolidate_rgdp_data(filename):
     :return: (pd.DataFrame) -> the dataframe with all the rGDP data
     """
 
+    print('Consolidating country-specific rGDP files into single .csv...')
+
     # Consolidate rGDP data into this dataframe
     rgdp_data = pd.DataFrame(columns=['Country', 'rGDP', 'Year'])
    
     # Restructure each country-level rGDP dataframe to match rgdp_data
+    file_i = 1
     for filename in os.listdir(RGDP_DIR):
         if filename.endswith('.csv'):
+            print(f'Processing {filename}... ({file_i} / {nfiles})')
             country = filename.split('_')[0]
             
             country_rgdp_data = pd.read_csv(os.path.join(RGDP_DIR, filename))
@@ -225,16 +226,10 @@ def consolidate_rgdp_data(filename):
 
 
 if __name__ == '__main__':
+    nfiles = len(_get_countries())
+    consolidate_rgdp_data(filename='rgdp_data.csv', nfiles=nfiles)
 
-    # Set up driver    
-    driver = setup_driver(DOWNLOAD_DIR)
-
-    # Get countries
-    neon_engine = get_engine_neon()
-
-    country_codes = _get_country_codes(_get_countries(neon_engine))
-
-    get_rgdp_data(country_codes, None, driver)
+    
 
 
 
