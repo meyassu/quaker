@@ -20,6 +20,13 @@ BASE_URL_UNEMPLOYMENT = 'https://fred.stlouisfed.org/searchresults/?st=unemploym
 DOWNLOAD_DIR = '/Users/jadijosh/workspace/quaker/data/econometrics/'
 
 def setup_driver(download_dir):
+    """
+    Set up Chrome driver.
+
+    :param download_dir: (str) -> the destination directory for downloads
+
+    :return: (selenium.webdriver) -> the web driver
+    """
    
     print('Setting up Chrome driver...')
 
@@ -123,6 +130,8 @@ def _get_countries(engine):
     Get countries from database.
 
     :param engine: (SqlAlchemy.engine) -> the database engine
+
+    :return: (list<str>) -> the countries in the database
     """
     
     query = '''
@@ -133,6 +142,11 @@ def _get_countries(engine):
     return countries
 
 def _get_country_codes(countries):
+    """
+    Translates plaintext country strings into URL country codes.
+
+    :param countries: (list<str>) -> the countries in the database
+    """
     
     # Record counter-intuitive country codes used by FRED server
     country_to_code = {'Federated States of Micronesia': 'micronesia', 
