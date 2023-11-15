@@ -8,7 +8,7 @@ import os
 
 
 import database
-from database import get_engine_neon, get_data, write_table, load_data_s3
+from database import get_engine_neon, get_engine_rds, get_data, write_table, load_data_s3
 
 
 
@@ -228,8 +228,13 @@ def consolidate_rgdp_data(fname, keywords_hierarchy):
 
 if __name__ == '__main__':
     
-    consolidate_rgdp_data(fname='rgdp.csv', keywords_hierarchy = ['Real GDP at Constant National Prices', 'Real Gross Domestic Product for',' Gross Domestic Product for', 'GDP'])
-    
+    rds_engine = get_engine_rds()
+
+    load_data_s3(bucket_name='quakerbucket', file_key='rgdp.csv', local_fpath=os.path.join(DOWNLOAD_DIR, 'rgdp.csv'))
+
+    rgdp_data = pd.read_csv(os.path.join(DOWNLOAD_DIR, 'rgdp.csv'))
+
+    write_table(data=rgdp_data, table_name='econometrics', if_exists='replace', engine=rds_engine)
 
 
 
