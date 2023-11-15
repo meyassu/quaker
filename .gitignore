@@ -1,4 +1,4 @@
 .env
-data/region_boundaries
-data/marine_boundaries
+data/region_boundaries/shp
+data/marine_boundaries/shp
 data/econometrics/rGDP
