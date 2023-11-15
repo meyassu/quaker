@@ -186,7 +186,7 @@ def _get_country_codes(countries):
     return country_codes
 
 
-def consolidate_rgdp_data(fname, nfiles):
+def consolidate_rgdp_data(fname, keywords_hierarchy, nfiles):
     """
     Consolidate country-specific rGDP data into a single dataframe.
     Save as .CSV to RGDP_DIR.
@@ -204,7 +204,7 @@ def consolidate_rgdp_data(fname, nfiles):
     # Restructure each country-level rGDP dataframe to match rgdp_data
     file_i = 1
     for filename in os.listdir(RGDP_DIR):
-        if filename.endswith('.csv'):
+        if filename.endswith('.csv') and keywords_hierarchy[0] in filename: # Only include rGDP at constant price
             print(f'Processing {filename}... ({file_i} / {nfiles})')
             country = filename.split('_')[0]
             
