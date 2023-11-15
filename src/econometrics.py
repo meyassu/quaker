@@ -8,7 +8,7 @@ import os
 
 
 import database
-from database import get_engine_neon, get_data, write_table
+from database import get_engine_neon, get_data, write_table, load_data_s3
 
 
 
@@ -17,7 +17,7 @@ Constants
 """
 BASE_URL_RGDP = 'https://fred.stlouisfed.org/searchresults/?st=gdp&t={}&ob=sr&od=desc'
 BASE_URL_UNEMPLOYMENT = 'https://fred.stlouisfed.org/searchresults/?st=unemployment%20rate&t={}&ob=sr&od=desc'
-DOWNLOAD_DIR = '/Users/jadijosh/workspace/quaker/data/econometrics/'
+DOWNLOAD_DIR = '../data/econometrics/'
 RGDP_DIR = os.path.join(DOWNLOAD_DIR, 'rGDP')
 
 
@@ -229,6 +229,8 @@ def consolidate_rgdp_data(fname, nfiles):
 if __name__ == '__main__':
     
     rds_engine = get_engine_neon()
+
+    load_data_s3(bucket_name='quakerbucket', file_key='rgdp.csv', local_fpath= DOWNLOAD_DIR)
 
     rgdp_data = pd.read_csv(os.path.join(DOWNLOAD_DIR, 'rgdp.csv'))
 
