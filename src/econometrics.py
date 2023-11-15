@@ -8,7 +8,7 @@ import os
 
 
 import database
-from database import get_engine_neon, get_data
+from database import get_engine_neon, get_data, write_table
 
 
 
@@ -106,7 +106,7 @@ def get_rgdp_data(country_codes, engine, driver):
         time.sleep(7)
         
         # Determine filename
-        downloaded_fname = f'{c.replace('%20', ' ').title()}_{best_result_title}_DOWNLOADED.csv'
+        downloaded_fname = f'{c.replace("%20", " ").title()}_{best_result_title}_DOWNLOADED.csv'
         downloaded_fpath = os.path.join(DOWNLOAD_DIR, downloaded_fname)
 
         # Rename file by waiting for it to appear in filesystem, then calling os.rename
@@ -186,7 +186,7 @@ def _get_country_codes(countries):
     return country_codes
 
 
-def consolidate_rgdp_data(filename, nfiles):
+def consolidate_rgdp_data(fname, nfiles):
     """
     Consolidate country-specific rGDP data into a single dataframe.
     Save as .CSV to RGDP_DIR.
@@ -221,23 +221,18 @@ def consolidate_rgdp_data(filename, nfiles):
             file_i += 1
 
     # Save the consolidated DataFrame to a new CSV file
-    rgdp_data.to_csv(os.path.join(RGDP_DIR, filename), index=False)
+    rgdp_data.to_csv(os.path.join(RGDP_DIR, fname), index=False)
 
-    return rgdp_data
-
-
+    return rgdp_data    
 
 
 if __name__ == '__main__':
     
-    driver = get_driver()
-    
-    neon_engine = get_engine_neon()
+    rds_engine = get_engine_neon()
 
-    countries = _get_countries(neon_engine)
-    country_codes = _get_country_codes(countries)
+    rgdp_data = pd.read_csv(os.path.join(DOWNLOAD_DIR, 'rgdp.csv'))
 
-    get_rgdp_data(country_codes, None, driver)
+    write_table(rgdp_data, table_name='econometrics', if_exists='replace', engine=rds_engine)
 
     
 
