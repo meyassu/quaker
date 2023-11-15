@@ -20,7 +20,8 @@ BASE_URL_UNEMPLOYMENT = 'https://fred.stlouisfed.org/searchresults/?st=unemploym
 DOWNLOAD_DIR = '/Users/jadijosh/workspace/quaker/data/econometrics/'
 RGDP_DIR = os.path.join(DOWNLOAD_DIR, 'rGDP')
 
-def setup_driver(download_dir):
+
+def get_driver():
     """
     Set up Chrome driver.
 
@@ -35,7 +36,7 @@ def setup_driver(download_dir):
     chrome_options = Options()
 
     prefs = {
-        "download.default_directory": download_dir,
+        "download.default_directory": DOWNLOAD_DIR,
         "download.prompt_for_download": False, # Enable auto-download
         "download.directory_upgrade": True,
         "safebrowsing.enabled": True
@@ -63,7 +64,7 @@ def get_rgdp_data(country_codes, engine, driver):
 
     
     for i, c in enumerate(country_codes):
-        print(f'Downloading file for {c}... ({i} / {len(country_codes)})')
+        print(f'Downloading file for {c}... ({i+1} / {len(country_codes)})')
         
         # Go to specific country data page
         url = BASE_URL_RGDP.format(c)
@@ -105,7 +106,7 @@ def get_rgdp_data(country_codes, engine, driver):
         time.sleep(7)
         
         # Determine filename
-        downloaded_fname = f'{c}_{best_result_title}_DOWNLOADED.csv'
+        downloaded_fname = f'{c.replace('%20', ' ').title()}_{best_result_title}_DOWNLOADED.csv'
         downloaded_fpath = os.path.join(DOWNLOAD_DIR, downloaded_fname)
 
         # Rename file by waiting for it to appear in filesystem, then calling os.rename
@@ -217,6 +218,8 @@ def consolidate_rgdp_data(filename, nfiles):
             
             rgdp_data = pd.concat([rgdp_data, country_rgdp_data], ignore_index=True)
 
+            file_i += 1
+
     # Save the consolidated DataFrame to a new CSV file
     rgdp_data.to_csv(os.path.join(RGDP_DIR, filename), index=False)
 
@@ -226,8 +229,15 @@ def consolidate_rgdp_data(filename, nfiles):
 
 
 if __name__ == '__main__':
-    nfiles = len(_get_countries())
-    consolidate_rgdp_data(filename='rgdp_data.csv', nfiles=nfiles)
+    
+    driver = get_driver()
+    
+    neon_engine = get_engine_neon()
+
+    countries = _get_countries(neon_engine)
+    country_codes = _get_country_codes(countries)
+
+    get_rgdp_data(country_codes, None, driver)
 
     
 
