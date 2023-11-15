@@ -1,3 +1,7 @@
 .env
-data/earthquake_data_filtered.csv
-data/earthquake_data_og.csv
+.git
+.gitignore
+data/region_boundaries
+data/marine_boundaries
+Quaker.qvf
+
