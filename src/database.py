@@ -28,6 +28,7 @@ Establish database connection
 def get_engine_neon():
     """
     Connects to PSQL database on Neon with SQLAlchemy engine using credentials from .env file.
+    (only for testing purposes)
 
     :return: (SQLAlchemy.engine) -> the engine
     """
