@@ -1,4 +1,5 @@
 .env
+__pycache__
 data/region_boundaries/shp
 data/marine_boundaries/shp
 data/econometrics/rGDP
