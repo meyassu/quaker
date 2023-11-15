@@ -186,7 +186,7 @@ def _get_country_codes(countries):
     return country_codes
 
 
-def consolidate_rgdp_data(fname, keywords_hierarchy, nfiles):
+def consolidate_rgdp_data(fname, keywords_hierarchy):
     """
     Consolidate country-specific rGDP data into a single dataframe.
     Save as .CSV to RGDP_DIR.
@@ -205,7 +205,7 @@ def consolidate_rgdp_data(fname, keywords_hierarchy, nfiles):
     file_i = 1
     for filename in os.listdir(RGDP_DIR):
         if filename.endswith('.csv') and keywords_hierarchy[0] in filename: # Only include rGDP at constant price
-            print(f'Processing {filename}... ({file_i} / {nfiles})')
+            print(f'Processing {filename}... ({file_i})')
             country = filename.split('_')[0]
             
             country_rgdp_data = pd.read_csv(os.path.join(RGDP_DIR, filename))
@@ -228,13 +228,10 @@ def consolidate_rgdp_data(fname, keywords_hierarchy, nfiles):
 
 if __name__ == '__main__':
     
-    rds_engine = get_engine_neon()
+    consolidate_rgdp_data(fname='rgdp.csv', keywords_hierarchy = ['Real GDP at Constant National Prices', 'Real Gross Domestic Product for',' Gross Domestic Product for', 'GDP']
+)
 
-    load_data_s3(bucket_name='quakerbucket', file_key='rgdp.csv', local_fpath= DOWNLOAD_DIR)
 
-    rgdp_data = pd.read_csv(os.path.join(DOWNLOAD_DIR, 'rgdp.csv'))
-
-    write_table(rgdp_data, table_name='econometrics', if_exists='replace', engine=rds_engine)
 
     
 
