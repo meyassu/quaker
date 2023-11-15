@@ -228,8 +228,8 @@ def consolidate_rgdp_data(fname, keywords_hierarchy):
 
 if __name__ == '__main__':
     
-    consolidate_rgdp_data(fname='rgdp.csv', keywords_hierarchy = ['Real GDP at Constant National Prices', 'Real Gross Domestic Product for',' Gross Domestic Product for', 'GDP']
-)
+    consolidate_rgdp_data(fname='rgdp.csv', keywords_hierarchy = ['Real GDP at Constant National Prices', 'Real Gross Domestic Product for',' Gross Domestic Product for', 'GDP'])
+    
 
 
 
