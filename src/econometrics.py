@@ -236,6 +236,8 @@ if __name__ == '__main__':
 
     write_table(data=rgdp_data, table_name='econometrics', if_exists='replace', engine=rds_engine)
 
+    
+
 
 
     
