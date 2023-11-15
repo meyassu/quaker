@@ -3,5 +3,6 @@
 .gitignore
 data/region_boundaries
 data/marine_boundaries
+data/econometrics/rGDP
 Quaker.qvf
 
