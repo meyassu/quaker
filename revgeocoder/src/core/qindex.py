@@ -16,26 +16,27 @@ def build_rtree(mbrs_gdf):
 
     # Basic validation
     if not isinstance(mbrs_gdf, gpd.GeoDataFrame):
-        raise TypeError("Input must be a GeoDataFrame")
+        raise TypeError('Input must be a GeoDataFrame')
 
     # Check if 'geometry' column exists
     if 'geometry' not in mbrs_gdf.columns:
-        raise ValueError("GeoDataFrame must have a 'geometry' column")
+        raise ValueError('GeoDataFrame must have a "geometry" column')
 
 	# Populate R*-tree with MBRs
     try:
-        print('Building R*-tree...')
+        logging.log('Building R*-tree...')
         rtree_obj = index.Index()
         for i, row in mbrs_gdf.iterrows():
             try:
                 rtree_obj.insert(i, row['geometry'].bounds)
             except Exception as e:
-                logging.error(f"Error inserting MBR to R*-tree at index {i}: {e}")
+                logging.error(f'Error inserting MBR to R*-tree at index {i}: {e}')
                 raise
-        return rtree_obj
     except Exception as e:
-        logging.error(f"Failed to build R*-tree: {e}")
+        logging.error(f'Failed to build R*-tree: {e}')
         raise
+    
+    return rtree_obj
 
 
 
