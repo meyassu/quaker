@@ -1,4 +1,5 @@
 from rtree import index
+import geopandas as gpd
 import logging
 
 """
@@ -13,15 +14,28 @@ def build_rtree(mbrs_gdf):
     :return: (rtree.Index) -> the R*-tree
     """
 
+    # Basic validation
+    if not isinstance(mbrs_gdf, gpd.GeoDataFrame):
+        raise TypeError("Input must be a GeoDataFrame")
+
+    # Check if 'geometry' column exists
+    if 'geometry' not in mbrs_gdf.columns:
+        raise ValueError("GeoDataFrame must have a 'geometry' column")
+
 	# Populate R*-tree with MBRs
     try:
         print('Building R*-tree...')
         rtree_obj = index.Index()
         for i, row in mbrs_gdf.iterrows():
-            rtree_obj.insert(i, row['geometry'].bounds)
+            try:
+                rtree_obj.insert(i, row['geometry'].bounds)
+            except Exception as e:
+                logging.error(f"Error inserting MBR to R*-tree at index {i}: {e}")
+                raise
+        return rtree_obj
     except Exception as e:
         logging.error(f"Failed to build R*-tree: {e}")
         raise
 
-    return rtree_obj
+
 
