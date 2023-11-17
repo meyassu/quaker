@@ -86,7 +86,7 @@ def get_engine_rds():
 """
 Initialize database
 """
-def init_database_rds(data_table_name, location_table_name):
+def init_database_rds(data, data_table_name, location_table_name):
     """
     Initializes database on AWS RDS instance by creating tables for the raw data
     containing the coordinates and the location table which will eventually store
@@ -99,9 +99,6 @@ def init_database_rds(data_table_name, location_table_name):
     """
 
     logging.log('Initializing RDS instance database...')
-   
-    # Load data
-    data = pd.read_csv(os.path.join(DATA_DIR), 'data.csv')
 
     # Get RDS engine
     rds_engine = get_engine_rds()
