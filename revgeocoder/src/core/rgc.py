@@ -185,7 +185,7 @@ def _distance_km(point_a, point_b):
 
     return distance
 
-def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, location_table_name, engine):
+def reverse_geocode(rtree_obj, boundaries_gdf, data_table_name, batch_size, location_table_name, engine):
     """
     Reverse geocode points and write results back to database.
 
@@ -212,7 +212,7 @@ def reverse_geocode(rtree_obj, boundaries_gdf, table_name, batch_size, location_
         while True:
             logging.log(f'Processing batch {offset / batch_size}...')
             # Get batch
-            query = f'SELECT "Latitude", "Longitude" FROM {table_name} LIMIT {batch_size} OFFSET {offset};'
+            query = f'SELECT "Latitude", "Longitude" FROM {data_table_name} LIMIT {batch_size} OFFSET {offset};'
             
             batch = get_data(query, engine)
             
