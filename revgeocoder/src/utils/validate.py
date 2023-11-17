@@ -1,7 +1,6 @@
 import pandas as pd
 
 
-
 def validate_data(data):
     """
     Validates the user data
