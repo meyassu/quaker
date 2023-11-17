@@ -20,10 +20,10 @@ from exceptions import DatabaseConnectionError, AuthenticationTokenError, DataPu
 """
 Constants
 """
-DATA_DIR = '../../data/'
+DATA_CONFIG_DIR = '../../data/user/config'
 
 # Load environment variables
-dotenv_path = os.path.join(os.path.dirname(__file__), os.path.join(DATA_DIR, 'config/.env'))
+dotenv_path = os.path.join(os.path.dirname(__file__), os.path.join(DATA_CONFIG_DIR, '.env'))
 load_dotenv(dotenv_path)
 
 
