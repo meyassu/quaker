@@ -1,5 +1,6 @@
 import pandas as pd
 import geopandas as gpd
+import numpy as np
 
 from sqlalchemy import create_engine, MetaData, Table, text
 from sqlalchemy.engine import URL
@@ -12,72 +13,86 @@ from botocore.exceptions import NoCredentialsError, ClientError
 from prettytable import PrettyTable
 
 from dotenv import load_dotenv
-import logging
 import os
 
-from exceptions import DatabaseConnectionError, AuthenticationTokenError, DataPushError, QueryExecutionError, TableExistenceError
-
-"""
-Constants
-"""
-DATA_CONFIG_DIR = '../../data/user/config'
-
-# Load environment variables
-dotenv_path = os.path.join(os.path.dirname(__file__), os.path.join(DATA_CONFIG_DIR, '.env'))
-load_dotenv(dotenv_path)
-
+from src.utils.exceptions import DatabaseConnectionError, AuthenticationTokenError, DataPushError, QueryExecutionError, TableExistenceError
+from src import LOGGER
 
 """
 Establish database connection
 """
-def get_engine_rds():
+def get_db_engine():
     """
-    Connects to PSQL database on AWS RDS with SQLAlchemy Engine using credentials from .env file.
+    Connects to PostGreSQL database with SQLAlchemy Engine using credentials from .env file.
 
     :return: (SQLAlchemy.engine) -> the engine
     """
 
-    logging.log('Connecting to RDS instance...')
+    LOGGER.info('Connecting to database...')
+    print('Connecting to database...') 
+    
+    # Get basic database information
+    host = os.getenv('DB_HOST')
+    port = os.getenv('DB_PORT')
+    username = os.getenv('DB_USER')
+    dbname = os.getenv('DB_NAME')
 
-    region = os.getenv('REGION')
-    host = os.getenv('RDS_PG_HOST')
-    port = os.getenv('RDS_PG_PORT')
-    username = os.getenv('RDS_PG_USER')
-    dbname = os.getenv('RDS_PG_DATABASE')
-    cert_fpath = os.getenv('RDS_PG_CERT_FPATH')
+    connection_url = None
 
-    try:
-        # Generate an auth token
-        rds_client = boto3.client('rds', region_name=region)
-        auth_token = rds_client.generate_db_auth_token(
-            DBHostname=host,
-            Port=port,
-            DBUsername=username,
-            Region=region
+    is_rds = os.getenv('RDS') == 'TRUE'
+    
+    # Build RDS connection URL if  database is on RDS instance
+    cert_path = None
+    region = None
+    if is_rds:
+        region = os.getenv('REGION')
+        cert_fpath = os.getenv('DB_CERT_FPATH')
+    
+        try:
+            # Generate an auth token to use as password
+            rds_client = boto3.client('rds', region_name=region)
+            auth_token = rds_client.generate_db_auth_token(
+                DBHostname=host,
+                Port=port,
+                DBUsername=username,
+                Region=region
         )
-    except (NoCredentialsError, ClientError)  as e: # Handle AWS-side issues
-        raise AuthenticationTokenError(f'Error generating authentication token: {e}')
-    except Exception as e:                          # Catch-all
-        raise AuthenticationTokenError(f'Unexpected error: {e}')
+        except (NoCredentialsError, ClientError)  as e: # Handle AWS-side issues
+            LOGGER.error(f'Error generating authentication token: {e}')
+            raise AuthenticationTokenError(f'Error generating authentication token: {e}')
+        except Exception as e:                          # Catch-all
+            LOGGER.error(f'Unexpected error: {e}')
+            raise AuthenticationTokenError(f'Unexpected error: {e}')
     
     
-    # Construct connection string
-    connection_url = URL (
-        drivername='postgresql+psycopg2',
-        username=username,
-        password=auth_token,
-        host=host,
-        port=port,
-        database=dbname,
-        query={'sslmode': 'verify-full', 'sslrootcert': cert_fpath})
+        # Construct connection string
+        connection_url = URL (
+            drivername='postgresql+psycopg2',
+            username=username,
+            password=auth_token,
+            host=host,
+            port=port,
+            database=dbname,
+            query={'sslmode': 'verify-full', 'sslrootcert': cert_fpath})
+
+    # Build generic database connection URL otherwise
+    elif is_rds == 'FALSE':
+        password = os.getenv('DB_PASSWORD')
+        connection_url = f'postgresql+psycopg2://{username}:{password}@{host}:{port}/{dbname}?sslmode=require'
+    else:
+        LOGGER.error(f'RDS field in .env is invalid, must be either "TRUE" or "FALSE"')
+        raise Exception(f'RDS field in .env is invalid, must be either "TRUE" or "FALSE"')
 
     try:
         engine = create_engine(connection_url)
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection issues
+        LOGGER.error(f'Error connecting to database: {e}')
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
     except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy error
+        LOGGER.error(f'Error creating SQLAlchemy engine: {e}')
         raise DatabaseConnectionError(f'Error creating SQLAlchemy engine: {e}')
     except Exception as e:                      # Catch-all
+        LOGGER.error(f'Unexpected error: {e}')
         raise DatabaseConnectionError(f'Unexpected error: {e}')
 
     return engine
@@ -86,7 +101,7 @@ def get_engine_rds():
 """
 Initialize database
 """
-def init_database_rds(data, data_table_name, location_table_name):
+def init_database(data, data_table_name, location_table_name):
     """
     Initializes database on AWS RDS instance by creating tables for the raw data
     containing the coordinates and the location table which will eventually store
@@ -98,17 +113,21 @@ def init_database_rds(data, data_table_name, location_table_name):
     :return: (bool) -> indicates whether operation was successful
     """
 
-    logging.log('Initializing RDS instance database...')
+    LOGGER.info('Initializing database...')
+    print('Initializing database...')
+    
+    # Get engine
+    engine = get_db_engine()
+    
+    # Create table in database (after lower-casing all field names for simplicity and adding province/country columns)
+    data.columns = [col.lower() for col in data.columns]
+    write_table(data=data, table_name=data_table_name, if_exists='replace', engine=engine)
+    add_fields(table_name=data_table_name, fields={'province': 'TEXT', 'country':'TEXT'}, engine=engine) 
 
-    # Get RDS engine
-    rds_engine = get_engine_rds()
-
-    # Create table in database
-    write_table(data=data, table_name=data_table_name, if_exists='replace', engine=rds_engine)
 
     # Create empty location table
-    location_data = pd.DataFrame(columns=['Province', 'Country'])
-    write_table(data=location_data, table_name=location_table_name, if_exists='replace', engine=rds_engine)
+    location_data = pd.DataFrame(columns=['province', 'country'])
+    write_table(data=location_data, table_name=location_table_name, if_exists='replace', engine=engine)
 
     return True
 
@@ -125,18 +144,22 @@ def write_table(data, table_name, if_exists, engine):
     :param engine: (sqlalchemy.engine) -> the SQLAlchemy engine
     """
 
-    logging.log(f'Writing to {table_name}...')
+    LOGGER.debug(f'Writing to {table_name}...')
 
     if not isinstance(data, pd.DataFrame):
+        LOGGER.error('Provided data is not a pandas DataFrame')
         raise DataPushError('Provided data is not a pandas DataFrame')
     
     try:
         data.to_sql(table_name, engine, if_exists=if_exists, index=False)
     except sqlalchemy_exc.DBAPIError as e:      # Catch DB connection error
+        LOGGER.error(f'Error connecting to database: {e}')
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
-    except sqlalchemy_exc.SQLAlchemyError as e: #
+    except sqlalchemy_exc.SQLAlchemyError as e: # Catch DB errors
+        LOGGER.error(f'Error pushing data to database: {e}')
         raise DataPushError(f'Error pushing data to database: {e}')
     except Exception as e:                      # Catch-all
+        LOGGER.error(f'Unexpected error: {e}')
         raise DataPushError(f'Unexpected error: {e}')
 
 def filter_table(small_table_name, big_table_name, fields, engine):
@@ -151,7 +174,7 @@ def filter_table(small_table_name, big_table_name, fields, engine):
     :return: (bool) -> indicates whether operation was sucessful
     """
 
-    logging.log(f'Filtering {fields} from {big_table_name} into {small_table_name}...')
+    LOGGER.debug(f'Filtering {fields} from {big_table_name} into {small_table_name}...')
 
     try:
         # Open connection
@@ -174,10 +197,13 @@ def filter_table(small_table_name, big_table_name, fields, engine):
             connection.commit()
             return True
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        LOGGER.error(f'Error connecting to database: {e}')
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
     except sqlalchemy_exc.SQLAlchemyError as e: # Handle query execution error
+        LOGGER.error(f'Error execuring query: {e}')
         raise QueryExecutionError(f'Error execuring query: {e}') 
     except Exception as e:
+        LOGGER.error(f'Unexpected error: {e}')
         raise Exception(f'Unexpected error: {e}')
 
 def add_fields(table_name, fields, engine):
@@ -191,13 +217,14 @@ def add_fields(table_name, fields, engine):
     :return: (bool) -> indicates whether operation was sucessful
     """
 
-    logging.log(f'Adding {fields} to {table_name}...')
+    LOGGER.debug(f'Adding {fields} to {table_name}...')
 
     try:
         # Open connection
         with engine.connect() as connection:
             # Ensure table exists
             if not _table_exists(table_name, connection):
+                LOGGER.error(f'{table_name} does not exist.')
                 raise TableExistenceError(f'{table_name} does not exist.')
             # Add fields
             for field, datatype in fields.items():
@@ -206,14 +233,17 @@ def add_fields(table_name, fields, engine):
                     ADD "{field}" {datatype};
                     '''
                 connection.execute(text(add_query))
-                logging.log(f"Column {field} added successfully.")
+                LOGGER.debug(f"Column {field} added successfully.")
             connection.commit()
             return True
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        LOGGER.error(f'Error connecting to database: {e}')
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
     except sqlalchemy_exc.SQLAlchemyError as e:  # Handle query execution error
+        LOGGER.error(f'Error executing query: {e}')
         raise QueryExecutionError(f'Error executing query: {e}')
     except Exception as e:
+        LOGGER.error(f'Unexpected error: {e}')
         raise Exception(f'Unexpected error: {e}')
 
 def drop_fields(table_name, fields, engine):
@@ -225,13 +255,14 @@ def drop_fields(table_name, fields, engine):
     :param engine: (SQLAlchemy.engine) -> the database engine 
     """
     
-    logging.log(f'Dropping {fields} from {table_name}...')
+    LOGGER.debug(f'Dropping {fields} from {table_name}...')
 
     try:
         # Open connection
         with engine.connect() as connection:
             # Ensure table exists
             if not _table_exists(table_name, connection):
+                LOGGER.error(f'{table_name} does not exist.')
                 raise TableExistenceError(f'{table_name} does not exist.')
             
             # Drop fields
@@ -243,10 +274,13 @@ def drop_fields(table_name, fields, engine):
                 connection.execute(text(drop_query))
             connection.commit()
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        LOGGER.error(f'Error connecting to database: {e}')
         raise DatabaseConnectionError(f'Error connecting to database: {e}')
     except sqlalchemy_exc.SQLAlchemyError as e:  # Handle query execution error
+        LOGGER.error(f'Error executing query: {e}')
         raise QueryExecutionError(f'Error executing query: {e}')
     except Exception as e:
+        LOGGER.error(f'Unexpected error: {e}')
         raise Exception(f'Unexpected error: {e}')
 
 
@@ -268,10 +302,13 @@ def _table_exists(table_name, connection):
         table_exists = result.scalar() is not None
         return table_exists
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        LOGGER.error(f'Error connecting to database {e}')
         raise DatabaseConnectionError(f'Error connecting to database {e}')
     except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
+        LOGGER.error(f'Error executing query: {e}')
         raise QueryExecutionError(f'Error executing query: {e}')
     except Exception as e:                      # Catch-all
+        LOGGER.error(f'Unexpected error: {e}')
         raise QueryExecutionError(f'Unexpected error: {e}')
 
 def clear_table(table_name, engine):
@@ -284,21 +321,96 @@ def clear_table(table_name, engine):
     :return: (bool) -> indicates whether operation was sucessful
     """
 
-    logging.log(f'Clearing {table_name}...')
+    LOGGER.debug(f'Clearing {table_name}...')
 
     try:
         with engine.connect() as connection:
-            clear_query = text(f"DELETE FROM {table_name};")
-            connection.execute(clear_query)
+            clear_query = f'DELETE FROM {table_name};'
+            connection.execute(text(clear_query))
             connection.commit()
             return True
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        LOGGER.error(f'Error connecting to database {e}')
         raise DatabaseConnectionError(f'Error connecting to database {e}')
     except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
+        LOGGER.error(f'Error executing query: {e}')
         raise QueryExecutionError(f'Error executing query: {e}')
     except Exception as e:                      # Catch-all
+        LOGGER.error(f'Unexpected error: {e}')
         raise QueryExecutionError(f'Unexpected error: {e}')
     
+
+def merge_tables(static_table_name, merging_table_name, fields, engine):
+    """"
+    Merges columns from merging table into static table.
+    (Presently limited to merging only two fields into static table)
+
+    :param static_table_name: (str) -> the name of the static table
+    :param merging_table_name: (str) -> the name of the merging table
+    :param fields: (list) -> the fields to be merged into the static table
+    :param engine: (SQLAlchemy.engine) -> the database engine
+
+    :return: (bool) -> indicates the success of the operation
+    """
+
+    LOGGER.debug(f'Merging {fields} from {merging_table_name} into {static_table_name}')
+    print(f'Merging {fields} from {merging_table_name} into {static_table_name}')
+
+    # Query to set up temporary keys in preparation for merging process
+    static_key_query = f'''
+                        ALTER TABLE {static_table_name} ADD COLUMN temp_id SERIAL;
+                        '''
+    
+    merging_key_query = f'''
+                        ALTER TABLE {merging_table_name} ADD COLUMN temp_id SERIAL;
+                        '''
+    
+    # Query to perform the merger
+    merging_query = f'''
+                    UPDATE {static_table_name}
+                    SET {fields[0]} = {merging_table_name}.{fields[0]},
+                        {fields[1]} = {merging_table_name}.{fields[1]}
+                    FROM {merging_table_name}
+                    WHERE {static_table_name}.temp_id = {merging_table_name}.temp_id;
+                    '''
+
+    # Query to remove the temporary keys
+    static_remkey_query = f'''
+                           ALTER TABLE {static_table_name} DROP COLUMN temp_id;
+                           '''
+    merging_remkey_query = f'''
+                           ALTER TABLE {merging_table_name} DROP COLUMN temp_id;
+                           '''
+    
+
+    # Execute all the queries in sequence
+    try:
+        with engine.connect() as connection:
+            # Create temporary keys in each table in preparation for merging process
+            connection.execute(text(static_key_query))
+            connection.execute(text(merging_key_query))
+
+            # Perform the merger
+            connection.execute(text(merging_query))
+
+            # Remove the temporary keys
+            connection.execute(text(static_remkey_query))
+            connection.execute(text(merging_remkey_query))
+
+            # Commit transation
+            connection.commit()
+    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        raise DatabaseConnectionError(f'Error connecting to database {e}')
+        LOGGER.error(f'Error connecting to database {e}')
+    except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
+        LOGGER.error(f'Error executing query: {e}')
+        raise QueryExecutionError(f'Error executing query: {e}')
+    except Exception as e:                      # Catch-all
+        LOGGER.error(f'Unexpected error: {e}')
+        raise QueryExecutionError(f'Unexpected error: {e}')
+
+    return True
+
 
 """
 Get data from database
@@ -313,7 +425,7 @@ def get_data(query, engine):
     :return: (pd.DataFrame) -> the data
     """
 
-    logging.log(f'Executing SELECT query: {query}...')
+    LOGGER.debug(f'Executing SELECT query: {query}...')
 
     try:
         # Open connection
@@ -323,10 +435,13 @@ def get_data(query, engine):
             data = pd.DataFrame(result.fetchall(), columns=result.keys())
             return data
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
+        LOGGER.error(f'Error connecting to database {e}')
         raise DatabaseConnectionError(f'Error connecting to database {e}')
     except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
+        LOGGER.error(f'Error executing query: {e}')
         raise QueryExecutionError(f'Error executing query: {e}')
     except Exception as e:                      # Catch-all
+        LOGGER.error(f'Unexpected error: {e}')
         raise QueryExecutionError(f'Unexpected error: {e}')
 
 
@@ -340,7 +455,7 @@ def view_database(tables, engine):
     :param engine: (sqlalchemy.engine) -> the SQLAlchemy engine maintaining a connection
     									  to the database
 
-    :return: None							
+    :return: (bool) -> indicates success of operation						
     """
     
     # Open connection
@@ -380,3 +495,6 @@ def view_database(tables, engine):
        
         # Close session
         session.close()
+
+    
+    return True

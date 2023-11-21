@@ -9,12 +9,14 @@ from shapely.ops import nearest_points
 from sqlalchemy import create_engine
 
 import math
-import logging
+import os
 
-from ..utils.database import write_table, get_data
+from src.utils.database import write_table, get_data
+from src import LOGGER
+
 
 """
-Constants
+Local Constants
 """
 # Territorial Zone threshold according to UN (km)
 TERRITORIAL_THRESHOLD = 22.2
@@ -25,6 +27,8 @@ CONTIGUOUS_THRESHOLD = 44.4
 # Exclusive Economic Zone (EEZ) threshold according to UN (km)
 EEZ_THRESHOLD = 370.4
 
+# Batch size
+BATCH_SIZE = int(os.getenv('BATCH_SIZE'))
 
 
 """
@@ -42,14 +46,17 @@ def pip(query_point, possible_region_boundaries, name_field='name', admin_field=
     
     # Basic validation
     if not isinstance(query_point, Point):
+        LOGGER.error('query_point must be a Shapely Point')
         raise TypeError('query_point must be a Shapely Point')
     if not isinstance(possible_region_boundaries, gpd.GeoDataFrame):
+        LOGGER.error('possible_region_boundaries must be a GeoDataFrame')
         raise TypeError('possible_region_boundaries must be a GeoDataFrame')
 
     # Required fields check
     required_fields = [name_field, admin_field, 'TERRAIN', 'geometry']
     if not all(field in possible_region_boundaries.columns for field in required_fields):
         missing_fields = [field for field in required_fields if field not in possible_region_boundaries.columns]
+        LOGGER.error(f'possible_region_boundaries is missing required fields: {missing_fields}')
         raise ValueError(f'possible_region_boundaries is missing required fields: {missing_fields}')
     
     try:
@@ -70,7 +77,7 @@ def pip(query_point, possible_region_boundaries, name_field='name', admin_field=
                     enclosing_boundary = region_boundary
                     break
             except Exception as e:
-                logging.error(f'Error processing region boundary at index {i}: {e}')
+                LOGGER.error(f'Error processing region boundary at index {i}: {e}')
                 raise
 
         
@@ -81,15 +88,16 @@ def pip(query_point, possible_region_boundaries, name_field='name', admin_field=
         # Map ocean query points to nearby land masses, if any
         if enclosing_boundary['TERRAIN'] == 'WATER':
             coastline_boundaries = possible_region_boundaries[possible_region_boundaries['TERRAIN'] == 'LAND']
-            nearest_coastline_boundary, dist = nearest_coastline(query_point, coastline_boundaries)
-            if dist < EEZ_THRESHOLD:
-                enclosing_boundary = nearest_coastline_boundary
+            if not coastline_boundaries.empty:
+                nearest_coastline_boundary, dist = nearest_coastline(query_point, coastline_boundaries)
+                if dist < EEZ_THRESHOLD:
+                    enclosing_boundary = nearest_coastline_boundary
 
         # Get province, country information and return
         province = enclosing_boundary[name_field] 
         country = enclosing_boundary[admin_field]
     except Exception as e:
-        logging.error(f'Failed in point-in-polygon processing: {e}')
+        LOGGER.error(f'Failed in point-in-polygon processing: {e}')
         raise
     
     return province, country
@@ -107,13 +115,15 @@ def nearest_coastline(query_point, coastline_boundaries):
 
     # Validate input types
     if not isinstance(query_point, Point):
+        LOGGER.error('query_point must be a Shapely Point')
         raise TypeError('query_point must be a Shapely Point')
     if not isinstance(coastline_boundaries, gpd.GeoDataFrame):
+        LOGGER.error('coastline_boundaries must be a GeoDataFrame')
         raise TypeError('coastline_boundaries must be a GeoDataFrame')
 
     # Check for empty GeoDataFrame
     if coastline_boundaries.empty:
-        logging.warning('No coastline boundaries provided')
+        LOGGER.error('No coastline boundaries provided')
         raise ValueError('coastline_boundaries is empty')
 
     try:
@@ -142,10 +152,10 @@ def nearest_coastline(query_point, coastline_boundaries):
                         min_dist = dist
                         nearest_coastline_boundary = coastline
             except Exception as e:
-                logging.error(f'Error processing coastline at index {i}: {e}')
+                LOGGER.error(f'Error processing coastline at index {i}: {e}')
                 raise
     except Exception as e:
-        logging.error(f'Failed in searching nearest coastline: {e}')
+        LOGGER.error(f'Failed in searching nearest coastline: {e}')
         raise
     
     return nearest_coastline_boundary, min_dist
@@ -162,6 +172,7 @@ def _distance_km(point_a, point_b):
 
     # Validate input types
     if not isinstance(point_a, Point) or not isinstance(point_b, Point):
+        LOGGER.error('point_a and point_b must be a Shapely Point')
         raise TypeError('point_a and point_b must be a Shapely Point')
 
     # Radius of the Earth in kilometers
@@ -185,14 +196,13 @@ def _distance_km(point_a, point_b):
 
     return distance
 
-def reverse_geocode(rtree_obj, boundaries_gdf, data_table_name, batch_size, location_table_name, engine):
+def reverse_geocode(rtree_obj, boundaries_gdf, data_table_name, location_table_name, engine):
     """
     Reverse geocode points and write results back to database.
 
     :param rtee_obj: (rtree.index.Index) -> the R*-tree
     :param boundaries_gdf: (gpd.GeoDataFrame) -> the boundary data
     :param table_name: (str) -> the target table name
-    :param batch_size: (int) -> the batch size
     :param engine: (SQLAlchemy.engine) -> the engine used to interface with database
 
     :return: None
@@ -200,19 +210,21 @@ def reverse_geocode(rtree_obj, boundaries_gdf, data_table_name, batch_size, loca
 
     # Validate input types
     if not isinstance(rtree_obj, rtree.index.Index):
+        LOGGER.error('rtree_obj must be an rtree.index.Index')
         raise TypeError('rtree_obj must be an rtree.index.Index')
     if not isinstance(boundaries_gdf, gpd.GeoDataFrame):
+        LOGGER.error('boundaries_gdf must be a GeoDataFrame')
         raise TypeError('boundaries_gdf must be a GeoDataFrame')
-    if not isinstance(engine, create_engine().dial):
-        raise TypeError('engine must be a SQLAlchemy engine')
 
-    logging.log('Reverse geocoding coordinates...')
+    LOGGER.info('Reverse geocoding coordinates...')
+    print('Reverse geocoding coordinates...')
     offset = 0
     try:
         while True:
-            logging.log(f'Processing batch {offset / batch_size}...')
+            LOGGER.info(f'Processing batch {offset / BATCH_SIZE}...')
+            print(f'Processing batch {offset / BATCH_SIZE}...')
             # Get batch
-            query = f'SELECT "Latitude", "Longitude" FROM {data_table_name} LIMIT {batch_size} OFFSET {offset};'
+            query = f'SELECT "latitude", "longitude" FROM {data_table_name} LIMIT {BATCH_SIZE} OFFSET {offset};'
             
             batch = get_data(query, engine)
             
@@ -223,34 +235,33 @@ def reverse_geocode(rtree_obj, boundaries_gdf, data_table_name, batch_size, loca
             for index, row in batch.iterrows():
                 try:
                     # Get coordinate point
-                    longitude = row['Longitude']
-                    latitude = row['Latitude']
+                    longitude = row['longitude']
+                    latitude = row['latitude']
                     coordinates = Point(longitude, latitude)
-                    logging.log(f'Reverse geocoding {coordinates}...')
+                    LOGGER.debug(f'Reverse geocoding {coordinates}...')
                     # Narrow down options with R*-tree
                     possible_region_boundaries_idx = list(rtree_obj.intersection(coordinates.bounds))
                     possible_region_boundaries = boundaries_gdf.loc[possible_region_boundaries_idx]
                     possible_region_boundaries = possible_region_boundaries.sort_values(by='TERRAIN', ascending=True)
-                    logging.log(f'Possible regions:\n{possible_region_boundaries}')
+                    LOGGER.debug(f'Possible regions:\n{possible_region_boundaries}')
                     # Run Point-in-Polygon on coordinate
                     province, country = pip(coordinates, possible_region_boundaries)
-                    logging.log(f'Result: ({province}, {country})')
-                    logging.log('\n-----------------------------------------------------------------------------------------------------\n')
+                    LOGGER.debug(f'Result: ({province}, {country})')
+                    LOGGER.debug('\n-----------------------------------------------------------------------------------------------------\n')
                     # Add results to batch_results
-                    batch_results.append({'Province': province, 'Country': country})
+                    batch_results.append({'province': province, 'country': country})
                 except Exception as e:
-                    logging.error(f"Error in reverse geocoding for batch index {index}: {e}")
-
+                    LOGGER.error(f"Error in reverse geocoding for batch index {index}: {e}")
             # Package batch_results into DataFrame
-            batch_results = pd.DataFrame(batch_results, columns=['Province', 'Country'])
+            batch_results = pd.DataFrame(batch_results, columns=['province', 'country'])
 
             # Write batch_results to staging table
             write_table(batch_results, table_name=location_table_name, if_exists='append', engine=engine)
             
             # Increment offset
-            offset += batch_size
+            offset += BATCH_SIZE
     except Exception as e:
-        logging.error(f'Failed in reverse geocoding process: {e}')
+        LOGGER.error(f'Failed in reverse geocoding process: {e}')
         raise
 
 

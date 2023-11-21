@@ -1,4 +1,5 @@
 import pandas as pd
+from src import LOGGER
 
 
 def validate_data(data):
@@ -10,33 +11,41 @@ def validate_data(data):
     :return: (bool, str) -> validation status and message regarding error, if any
     """
 
+    LOGGER.info('Validating data...')
     print('Validating data...')
 
-	# Check for missing values in the 'Latitude' and 'Longitude' columns
-    if data['Latitude'].isnull().any() or data['Longitude'].isnull().any():
-        return False, 'Data must include "Latitude" and "Longitude" fields'
+    is_valid = True
+    error_message = ''
+
+    # Check for missing values in the 'Latitude', 'Longitude', and 'Magnitude' columns
+    if data[['Latitude', 'Longitude', 'Magnitude']].isnull().any().any():
+        is_valid = False
+        error_message += 'Data must include "Latitude", "Longitude", and "Magnitude" fields' + '\n'
 
     # Check for out-of-range latitude and longitude values
     invalid_latitude = data[(data['Latitude'] < -90) | (data['Latitude'] > 90)]
     invalid_longitude = data[(data['Longitude'] < -180) | (data['Longitude'] > 180)]
 
     if not invalid_latitude.empty or not invalid_longitude.empty:
-        return False, 'Invalid data found in "Latitude" and/or "Longitude" fields'
+        is_valid = False
+        error_message += 'Invalid data found in "Latitude" and/or "Longitude" fields' + '\n' 
 
-    return True, None
+    # Check for valid Magnitude values (adjust range as per your data specifics)
+    invalid_magnitude = data[(data['Magnitude'] < 0) | (data['Magnitude'] > 10)]
+    if not invalid_magnitude.empty:
+        is_valid = False
+        error_message += 'Invalid data found in "Magnitude" field' + '\n'
 
-	
+    # Check for unique records
+    if not data.drop_duplicates().shape[0] == data.shape[0]:
+        is_valid = False
+        error_message += 'Data contains duplicate records' + '\n'
 
+    # Check for empty records
+    if data.empty:
+        is_valid = False
+        error_message += 'Data should not be empty' + '\n'
 
-
-
-
-
-
-
-
-
-
-
+    return is_valid, error_message
 
 
