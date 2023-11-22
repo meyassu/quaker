@@ -16,7 +16,7 @@ Welcome to Quaker, a repository built to visualize the spatiotemporal distributi
 ### The Data
 The NEIC earthquake dataset contains information on over 23k severe earthquakes from 1965 to 2016. Each earthquake record is made up of the following dimensions:
 
- Date | Time | Latitude | Longitude | Type | Depth | Depth Error | Depth Seismic Stations | Magnitude | Magnitude Type | Magnitude Error | 
+|Date | Time | Latitude | Longitude | Type | Depth | Depth Error | Depth Seismic Stations | Magnitude | Magnitude Type | Magnitude Error| 
   ---   ---      ---         ---      ---     ---       ---                ---                 ---           ---               ---
 
 
