@@ -2,8 +2,8 @@ name: rgc-workflow
 
 on:
   push:
-    paths:
-      - "./revgeocoder/**"
+    branches:
+      - "main"
 
 jobs:
   build:
