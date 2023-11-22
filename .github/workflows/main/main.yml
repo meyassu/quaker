@@ -3,7 +3,7 @@ name: rgc-workflow
 on:
   push:
     paths:
-      - "revgeocoder/**"
+      - "./revgeocoder/**"
 
 jobs:
   build:
