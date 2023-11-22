@@ -1,11 +1,45 @@
 # quaker
 
+Outline
+- 
+
+
+
 ## Table of Contents
 - [Overview](#overview)
 - [Repository Contents](#repository-contents)
 - [Instructions](#instructions)
 
 ## Overview
+Welcome to Quaker, a repository built to visualize the spatiotemporal distribution of severe earthquakes and their effects on regional macroeconomic variables such as real GDP (rGDP) using geospatial libraries and the Qlik Sense platform. Quaker is based on a single extensive dataset provided by the National Earthquake Information Center (NEIC) and made available on [Kaggle](https://www.kaggle.com/datasets/usgs/earthquake-database).
+
+### The Data
+The NEIC earthquake dataset contains information on over 23k severe earthquakes from 1965 to 2016. Each earthquake record is made up of the following dimensions:
+
+ Date | Time | Latitude | Longitude | Type | Depth | Depth Error | Depth Seismic Stations | Magnitude | Magnitude Type | Magnitude Error | 
+  ---   ---      ---         ---      ---     ---       ---                ---                 ---           ---               ---
+
+
+
+
+
+
+Magnitude Seismic Stations | Azimuthal Gap | Horizontal Distance
+Horizontal Error
+Root Mean Square
+ID Source
+Location Source
+Magnitude Source
+Status
+
+
+
+
+
+
+
+
+
 The software in this repository works towards a visualization of severe earthquake data (> 5.5 magnitude Richter scale) vis-a-vis trends in regional macroeneomic variables to better understand the economic impact of large earthquakes. The data is provided by the National Earthquake Information Center, an arm of the US Geological Survey, and made made available on Kaggle (https://www.kaggle.com/datasets/usgs/earthquake-database). This dataset only includes the latitude/longitude coordinates of the epicenters of the various earthquakes and does not annotate the earthquake records with any geopolitical details (this information is needed to do economic analysis since economic data is indexed according to geopolitical boundaries and not geographical coordinates). It is necessary, for this reason, to reverse-geocode the dataset. Most of the code in this repository is concerned with this task.
 
 The visualization of the earthquake data can be viewed by importing quaker.qvf into the Qlik Sense cloud platform. 
