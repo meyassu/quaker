@@ -18,8 +18,8 @@ import time
 """
 Init. Configuration
 """
-print(f'Configuring environment...')
-LOGGER.info(f'Configuring environment...')
+print(f'Configuring the environment...')
+LOGGER.info(f'Configuring the environment...')
 configure_py()
 configure_dotenv()
 
