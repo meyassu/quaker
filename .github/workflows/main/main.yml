@@ -25,7 +25,7 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./revgeocoder/Dockerfile
+          context: ./revgeocoder
+          file: ./Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/revgeocoder:latest
