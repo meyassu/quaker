@@ -76,12 +76,9 @@ def get_db_engine():
             query={'sslmode': 'verify-full', 'sslrootcert': cert_fpath})
 
     # Build generic database connection URL otherwise
-    elif is_rds == 'FALSE':
+    else:
         password = os.getenv('DB_PASSWORD')
         connection_url = f'postgresql+psycopg2://{username}:{password}@{host}:{port}/{dbname}?sslmode=require'
-    else:
-        LOGGER.error(f'RDS field in .env is invalid, must be either "TRUE" or "FALSE"')
-        raise Exception(f'RDS field in .env is invalid, must be either "TRUE" or "FALSE"')
 
     try:
         engine = create_engine(connection_url)
