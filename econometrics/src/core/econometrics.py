@@ -10,7 +10,7 @@ import logging
 import time
 import os
 
-from ..utils.database import get_data
+from src.utils.database import get_data
 
 
 
