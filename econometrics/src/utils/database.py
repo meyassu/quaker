@@ -12,7 +12,6 @@ from botocore.exceptions import NoCredentialsError, ClientError
 
 from prettytable import PrettyTable
 
-from dotenv import load_dotenv
 import os
 
 from src.utils.exceptions import DatabaseConnectionError, AuthenticationTokenError, DataPushError, QueryExecutionError, TableExistenceError
@@ -94,37 +93,6 @@ def get_db_engine():
 
     return engine
 
-
-"""
-Initialize database
-"""
-def init_database(data, data_table_name, location_table_name, engine):
-    """
-    Initializes database on AWS RDS instance by creating tables for the raw data
-    containing the coordinates and the location table which will eventually store
-    the results of the reverse geocoding algorithm.
-
-    :param data_table_name: (str) -> the name of the data table
-    :param location_table_name: (str) -> the name of the location table
-    :param engine: (SQLAlchemy.engine) -> the database engine
-    
-    :return: (bool) -> indicates whether operation was successful
-    """
-
-    LOGGER.info('Initializing database...')
-    print('Initializing database...', flush=True)
-    
-    # Create table in database (after lower-casing all field names for simplicity and adding province/country columns)
-    data.columns = [col.lower() for col in data.columns]
-    write_table(data=data, table_name=data_table_name, if_exists='replace', engine=engine)
-    add_fields(table_name=data_table_name, fields={'province': 'TEXT', 'country':'TEXT'}, engine=engine) 
-
-
-    # Create empty location table
-    location_data = pd.DataFrame(columns=['province', 'country'])
-    write_table(data=location_data, table_name=location_table_name, if_exists='replace', engine=engine)
-
-    return True
 
 
 """""
