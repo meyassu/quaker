@@ -6,8 +6,6 @@ import rtree
 from shapely.geometry import Point, MultiPolygon
 from shapely.ops import nearest_points
 
-from sqlalchemy import create_engine
-
 import math
 import os
 
@@ -217,12 +215,12 @@ def reverse_geocode(rtree_obj, boundaries_gdf, data_table_name, location_table_n
         raise TypeError('boundaries_gdf must be a GeoDataFrame')
 
     LOGGER.info('Reverse geocoding coordinates...')
-    print('Reverse geocoding coordinates...')
+    print('Reverse geocoding coordinates...', flush=True)
     offset = 0
     try:
         while True:
             LOGGER.info(f'Processing batch {offset / BATCH_SIZE}...')
-            print(f'Processing batch {offset / BATCH_SIZE}...')
+            print(f'Processing batch {offset / BATCH_SIZE}...', flush=True)
             # Get batch
             query = f'SELECT "latitude", "longitude" FROM {data_table_name} LIMIT {BATCH_SIZE} OFFSET {offset};'
             
