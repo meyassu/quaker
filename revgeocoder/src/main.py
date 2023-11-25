@@ -8,20 +8,16 @@ from src.utils.validate import validate_data
 from src.core.qindex import build_rtree
 from src.core.rgc import reverse_geocode
 
-from src import configure_py, configure_dotenv
 from src import USER_DATA_DIR, INPUT_DIR, OUTPUT_DIR, INTERNAL_DATA_DIR, LOGS_DIR
 from src import LOGGER
 
 import time
 
-
 """
 Init. Configuration
 """
-print(f'Configuring environment parameters...')
+print('Configuring environment parameters...', flush=True)
 LOGGER.info(f'Configuring environment parameters...')
-configure_py()
-configure_dotenv()
 
 
 """
@@ -48,7 +44,7 @@ if __name__ == "__main__":
     engine = get_db_engine()
 
     # Initialize database
-    init_database(data, data_table_name=DATA_TABLE_NAME, location_table_name=LOCATION_TABLE_NAME)
+    init_database(data, data_table_name=DATA_TABLE_NAME, location_table_name=LOCATION_TABLE_NAME, engine=engine)
 
     # Load boundaries data
     boundaries_gdf = gpd.read_file(os.path.join(INTERNAL_DATA_DIR, 'boundaries.geojson'))
@@ -84,14 +80,14 @@ if __name__ == "__main__":
         else:
             # Copy file over
             shutil.copy(log_fpath, USER_DATA_DIR)
-            print(f'{log_fpath} copied successfully to {USER_DATA_DIR}')
+            print(f'{log_fpath} copied successfully to {USER_DATA_DIR}', flush=True)
     except IOError as e:
         LOGGER.error(f'Error occured while copying {log_fpath} to {USER_DATA_DIR}')
         raise e
 
     end_time = time.time()
     
-    print(f'revgeocoder took {end_time - start_time} seconds to run')
+    print(f'revgeocoder took {end_time - start_time} seconds to run', flush=True)
     LOGGER.info(f'revgeocoder took {end_time - start_time} seconds to run')
 
 
