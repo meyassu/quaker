@@ -30,7 +30,7 @@ def build_rtree(mbrs_gdf):
 	# Populate R*-tree with MBRs
     try:
         LOGGER.info('Building R*-tree...')
-        print('Building R*-tree...')
+        print('Building R*-tree...', flush=True)
         rtree_obj = index.Index()
         for i, row in mbrs_gdf.iterrows():
             try:
