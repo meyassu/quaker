@@ -24,7 +24,7 @@ def compute_mbrs(boundaries_gdf, output_fpath, name_field='name'):
     
     
     LOGGER.info(f'Computing MBRs...')
-    print(f'Computing MBRs...')
+    print(f'Computing MBRs...', flush=True)
 
     try:
         # Compute bounding box for each boundary and store in new Geo dataframe
@@ -58,7 +58,7 @@ def _shapefile_to_geojson(boundaries_shp_fpath, output_fpath):
     """
 
     LOGGER.info(f'Writing {boundaries_shp_fpath} to {output_fpath} as GeoJSON file...')
-    print(f'Writing {boundaries_shp_fpath} to {output_fpath} as GeoJSON file...')    
+    print(f'Writing {boundaries_shp_fpath} to {output_fpath} as GeoJSON file...', flush=True)    
 
     # Translate Shapefile into GeoJSON
     try:

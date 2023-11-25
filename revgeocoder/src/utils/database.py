@@ -29,7 +29,7 @@ def get_db_engine():
     """
 
     LOGGER.info('Connecting to database...')
-    print('Connecting to database...') 
+    print('Connecting to database...', flush=True) 
     
     # Get basic database information
     host = os.getenv('DB_HOST')
@@ -98,7 +98,7 @@ def get_db_engine():
 """
 Initialize database
 """
-def init_database(data, data_table_name, location_table_name):
+def init_database(data, data_table_name, location_table_name, engine):
     """
     Initializes database on AWS RDS instance by creating tables for the raw data
     containing the coordinates and the location table which will eventually store
@@ -106,15 +106,13 @@ def init_database(data, data_table_name, location_table_name):
 
     :param data_table_name: (str) -> the name of the data table
     :param location_table_name: (str) -> the name of the location table
+    :param engine: (SQLAlchemy.engine) -> the database engine
     
     :return: (bool) -> indicates whether operation was successful
     """
 
     LOGGER.info('Initializing database...')
-    print('Initializing database...')
-    
-    # Get engine
-    engine = get_db_engine()
+    print('Initializing database...', flush=True)
     
     # Create table in database (after lower-casing all field names for simplicity and adding province/country columns)
     data.columns = [col.lower() for col in data.columns]
@@ -351,7 +349,7 @@ def merge_tables(static_table_name, merging_table_name, fields, engine):
     """
 
     LOGGER.debug(f'Merging {fields} from {merging_table_name} into {static_table_name}')
-    print(f'Merging {fields} from {merging_table_name} into {static_table_name}')
+    print(f'Merging {fields} from {merging_table_name} into {static_table_name}', flush=True)
 
     # Query to set up temporary keys in preparation for merging process
     static_key_query = f'''
@@ -466,7 +464,7 @@ def view_database(tables, engine):
         session = Session()
 
         for table_name in metadata.tables:
-            print(f"\n=== Contents of table '{table_name}': ===\n")
+            print(f"\n=== Contents of table '{table_name}': ===\n", flush=True)
         
             # Load table
             table = metadata.tables[table_name]
@@ -483,12 +481,12 @@ def view_database(tables, engine):
                 pretty_table.add_row(row)
 
             # print table with data
-            print(pretty_table)
+            print(pretty_table, flush=True)
             with open(f'{table_name}.txt', 'w') as f:
                 f.write(pretty_table.get_string())
 
             # Add a separator for better readability between tables
-            print("\n" + "="*60 + "\n")
+            print("\n" + "="*60 + "\n", flush=True)
        
         # Close session
         session.close()

@@ -12,7 +12,7 @@ def validate_data(data):
     """
 
     LOGGER.info('Validating data...')
-    print('Validating data...')
+    print('Validating data...', flush=True)
 
     is_valid = True
     error_message = ''
