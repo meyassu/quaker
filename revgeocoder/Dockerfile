@@ -1,12 +1,12 @@
-FROM python:3.9-slim
+# FROM python:3.9-slim
+FROM continuumio/miniconda3
 
 WORKDIR /usr/src/app
 
-# Copy directory contents into the container at /usr/src/app
 COPY . .
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN conda env create -f environment.yml
 
-# Run app.py when the container launches
-CMD ["python","-m", "src.main"]
+ENV PYTHONUNBUFFERED 1
+
+CMD ["conda", "run", "--no-capture-output", "-n", "revgeocoder", "python", "-m", "src.main"]
