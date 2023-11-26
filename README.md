@@ -3,6 +3,7 @@
 ## Table of Contents
 - [Overview](#overview)
 - [The Data](#the-data)
+- [Modules](#modules)
 - [Repository Contents](#repository-contents)
 - [Instructions](#instructions)
 
@@ -11,12 +12,11 @@ Welcome to Quaker, a repository built to visualize the spatiotemporal distributi
 
 This repository is made up of two independent modules: Revgeocoder and Econbot. 
 
-Revgeocoder is an efficient, general-purpose reverse geocoder built from scratch. To create visualizations of the effects of severe seismic activity on local rGDP trends, there needs to be a uniform system for representing geographical data across both the earthquake and economic datasets. The issue is earthquake datasets represent geographical location with (latitude, longitude) coordinates while economic datasets represent location in geopolitical terms i.e. (country, province) tuples. Revgeocoder bridges this gap by translating coordinate data into human-readable geolocation information. It can perform this computation on any dataset regardless of its structure as long as it contains columns called 'latitude' and 'longitude'. Its internal algorithm, supporting libraries, and instructions to run it will be described further in (LINK TO REVGEOCODER SECTION).
+Revgeocoder is an efficient, general-purpose reverse geocoder built from scratch. To create visualizations of the effects of severe seismic activity on local rGDP trends, there needs to be a uniform system for representing geographical data across both the earthquake and economic datasets. The issue is earthquake datasets represent geographical location with (latitude, longitude) coordinates while economic datasets represent location in geopolitical terms i.e. (country, province) tuples. Revgeocoder bridges this gap by translating coordinate data into human-readable geolocation information. It can perform this computation on any dataset regardless of its structure as long as it contains columns called 'latitude' and 'longitude'. Its internal algorithm, supporting libraries, and instructions to run it will be described further in [Revgeocoder](#revgeocoder).
 
-Econbot is the web scraper responsible for creating the rGDP time-series dataset. It works by navigating to the FRED website, downloading region-specific rGDP data for > 100 countries as CSV files, and then collating all the CSVs into a single coherent dataset. More details regarding Econbot, including instructions to run it locally can be found in (LINK TO ECONBOT SECTION).
+Econbot is the web scraper responsible for creating the rGDP time-series dataset. It works by navigating to the FRED website, downloading region-specific rGDP data for > 100 countries as CSV files, and then collating all the CSVs into a single coherent dataset. More details regarding Econbot, including instructions to run it locally can be found in [Econbot](#econbot).
 
-Both of these back-end modules will be discussed after the datasets and the visualizations are presented.
-
+Both of these backend modules will be discussed after the datasets and the visualizations are presented.
 
 ## The Data
 
@@ -28,30 +28,33 @@ The NEIC earthquake dataset contains information on over 23k severe earthquakes 
 
 
 ### FRED rGDP Dataset
-The FRED rGDP dataset consists of the annual rGDP values at constant national price for over 100 countries from around 1950 to 2019. The precise dates are differnt for each country but the data invariably spans a substantial portion of the 20th/21st centuries. Each record is made up of the following dimensions:
+The FRED rGDP dataset consists of the annual rGDP values at constant national price for over 100 countries from around 1950 to 2019. The precise dates are different for each country but the data invariably spans a substantial portion of the 20th/21st centuries. Each record is made up of the following dimensions:
  
 | Country | rGDP | Year | 
-| ---- | ---- | ------- |
-
+| ------- | ---- | ---- |
 
 Both datasets were run through a validation process to ensure that they do not contain missing values, duplicate records, empty records, or out of range values. 
 
 ## Visualizations
 
 ### Spatiotemporal Distribution of Earthquakes
-The spatial distribution of earthquakes is concentrated most around the Ring of Fire, a seismically active area encircling the Pacific Ocean, and Oceania. The data reflects a weak positive variance between earthquake frequency and time. Below are screenshots from the Qlik Sense Platform. To access the visualizations directly, see the Instructions section (LINK TO INSTRUCTIONS SECTION HERE).
+The spatial distribution of earthquakes is concentrated most around the Ring of Fire, a seismically active area encircling the Pacific Ocean, and Oceania. The data reflects a weak positive variance between earthquake frequency and time. Below are screenshots from the Qlik Sense Platform. To access the visualizations directly, see the [Instructions](#instructions) section.
+
+
 
 ### Economic Effects of Earthquakes 
-The countries included in these datasets showed a surprising economic resilience to severe earthquakes, in that annual rGDP generally remained constant or rose even through seismically intense periods. The most striking example of this is the Japanese economy in the early 2010s. Below are screenshots from the Qlik Sense Platform. To access the visualizations directly, see the Instructions section (LINK TO INSTRUCTIONS SECTION HERE).
+The countries included in these datasets showed a surprising economic resilience to severe earthquakes, in that annual rGDP generally remained constant or rose even through seismically intense periods. The most striking example of this is the Japanese economy in the early 2010s. Below are screenshots from the Qlik Sense Platform. To access the visualizations directly, see the [Instructions](#instructions) section.
 
+## Modules
 
-## Revgeocoder
+### Revgeocoder
 Revgeocoder is a general-purpose reverse geocoder. It works by indexing an exhaustive dataset containing the geometry and location of every geographical boundary, both maritime and land, with an R*-tree, narrowing down the possible candidate regions with the R*-tree, and then performing a Point-in-Polygon operation on the filtered set of regions. Each of these components of Revgeocoder will be discussed here.
 
-### Boundary Dataset
+#### Boundary Dataset
 The boundary data is sourced from a community-run site known as [NaturalEarth](https://www.naturalearthdata.com/downloads/) and comes in the form of a Shapefile directory. 
 
-## Econbot
+
+### Econbot
 
 
 ## Repository Contents
