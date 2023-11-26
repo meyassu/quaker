@@ -38,14 +38,32 @@ Both datasets were run through a validation process to ensure that they do not c
 ## Visualizations
 
 ### Spatiotemporal Distribution of Earthquakes
-The spatial distribution of earthquakes is concentrated most around the Ring of Fire, a seismically active area encircling the Pacific Ocean, and Oceania. The data reflects a weak positive variance between earthquake frequency and time. Below are screenshots from the Qlik Sense Platform. To access the visualizations directly, see the [Instructions](#instructions) section.
+The spatial distribution of earthquakes is concentrated most around the Ring of Fire, a seismically active area encircling the Pacific Ocean, and Oceania. The data reflects a weak positive variance between earthquake frequency and time. These visualizations are interactive; users can change the year being displayed and the lower bound on magnitude. Below are screenshots from the Qlik Sense Platform. 
 
-![Alt text](/documentation/img/earthquake_st_distribution?raw=true "Optional Title")
+To access the visualizations and the associated stories directly, see the [Instructions](#instructions) section.
+
+![spatiotemporal-visualization-1987](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquake_st_distribution.png?raw=true)
+Global spatial distribution of earthquakes with magnitude > 6 on Richter scale in 1987.<br><br>
+
+![spatiotemporal-visualization-2011](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquake_st_distribution_2011.png?raw=true)
+Global spatial distribution of earthquakes with magnitude > 5 on Richter scale in 2011 (note the cluster of activity around Japan).<br><br>
+
+![spatiotemporal-visualization-japan-2011](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquake_japan_2011.png?raw=true)
+Closer look at Japan earthquakes in 2011.<br><br>
+
 
 
 
 ### Economic Effects of Earthquakes 
-The countries included in these datasets showed a surprising economic resilience to severe earthquakes, in that annual rGDP generally remained constant or rose even through seismically intense periods. The most striking example of this is the Japanese economy in the early 2010s. Below are screenshots from the Qlik Sense Platform. To access the visualizations directly, see the [Instructions](#instructions) section.
+The countries included in these datasets showed a surprising economic resilience to severe earthquakes in that annual rGDP generally remained constant or rose even through seismically intense periods. The most striking example of this is the Japanese economy in the early 2010s.  These visualizations are interactive; users can change the year and country being displayed. Below are screenshots from the Qlik Sense Platform. 
+
+To access the visualizations directly, see the [Instructions](#instructions) section.
+
+![spatiotemporal-visualization-1987](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquakes_rgdp.png?raw=true)
+Time-series rGDP data parallel with time-series earthquake frequency data.<br><br>
+
+![spatiotemporal-visualization-2011](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquakes_rgdp_japan.png?raw=true)
+Japanese rGDP resilient to 2011 catastrophes.<br><br>
 
 ## Modules
 
