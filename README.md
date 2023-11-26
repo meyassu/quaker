@@ -40,6 +40,8 @@ Both datasets were run through a validation process to ensure that they do not c
 ### Spatiotemporal Distribution of Earthquakes
 The spatial distribution of earthquakes is concentrated most around the Ring of Fire, a seismically active area encircling the Pacific Ocean, and Oceania. The data reflects a weak positive variance between earthquake frequency and time. Below are screenshots from the Qlik Sense Platform. To access the visualizations directly, see the [Instructions](#instructions) section.
 
+![Alt text](/documentation/img/earthquake_st_distribution?raw=true "Optional Title")
+
 
 
 ### Economic Effects of Earthquakes 
