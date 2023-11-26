@@ -1,13 +1,13 @@
 # Quaker
 
 ## Table of Contents
-- [Overview](#meme)
+- [Overview](#overview)
 - [The Data](#the-data)
 - [Modules](#modules)
 - [Repository Contents](#repository-contents)
 - [Instructions](#instructions)
 
-## [Overview](#meme)
+## Overview
 Welcome to Quaker, a repository built to visualize the spatiotemporal distribution of severe earthquakes and their effects on regional macroeconomic variables such as real GDP (rGDP) using geospatial libraries and the Qlik Sense platform. Quaker is based on an extensive dataset on seismic activity provided by the National Earthquake Information Center (NEIC) and made available on [Kaggle](https://www.kaggle.com/datasets/usgs/earthquake-database) and a large time-series economic dataset on rGDP trends collected from the archives of the [Federal Reserve Bank of St. Louis](https://fred.stlouisfed.org/) (FRED). 
 
 This repository is made up of two independent modules: Revgeocoder and Econbot. 
@@ -84,7 +84,7 @@ R-trees can be thought of as binary search trees (BSTs) for geographical data. B
 R-tree graphical representation.<br>
 
 #### Reverse Geocoding Algorithm
-As mentioned in Spatial Indexing with R-tree()
+As mentioned in [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree)
 
 ### Econbot
 
