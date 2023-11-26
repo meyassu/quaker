@@ -4,8 +4,10 @@ import sys
 import os
 
 from src.utils.database import get_db_engine, write_table
+from src.utils.validate import validate_data
 
 from src import INTERNAL_DATA_DIR
+from src import LOGGER
 
 if __name__ == '__main__':
 
@@ -19,6 +21,12 @@ if __name__ == '__main__':
 
     # Get data
     rgdp_data = pd.read_csv(os.path.join(INTERNAL_DATA_DIR, 'rgdp.csv'))
+
+    # Validate data
+    is_valid, error_message = validate_data(rgdp_data)
+    if is_valid == False:
+        LOGGER.info(error_message)
+        raise Exception(error_message)
 
     # Get database engine
     engine = get_db_engine()
