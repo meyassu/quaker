@@ -78,13 +78,16 @@ The naive approach to reverse geocoding a geographical coordinate pair in the co
 
 The simplest optimization to this brute-force algorithm would be to implement basic quadrant filtering, which entails computing the geographical quadrant of the coordinate point, doing the same for every boundary in the dataset, eliminating all the boundaries outside of that quadrant, and running the PiP operation on the remaining candidate regions. To accelerate the categorization of boundaries into quadrants, it would be a good idea to temporarily replace the complex boundary polygons with minimum bounding rectangles (MBRs) just for this step since the margin of error introduced with this loss of precision is negligible in this context. This approach is better but ideally, there would be some way to replace quadrant filtering with a more fine-grained, and comparably fast, filtering algorithm. Happily, there is such an algorithm called R-tree-based filtering, which, while data-hungry, fits this criteria.
 
-R-trees can be thought of as binary search trees (BSTs) for geographical data. Both data structures achieve roughly O(log n) query complexity by hierarchically splitting the search space at different scales and exploiting this to rapidly narrow down the set of possible targets. R-trees are typically populated with boundary MBRs. Revgeocoder does this with build_rtree() at revgeocoder/src/utils/qindex.py. It then uses the R-tree to quickly narrow down the set of possible regions for every query point in the input data and runs PiP on the remaning candidate regions until it finds a match. Below is a graphical representation of an R-tree that makes its underlying concepts simple to grasp.
+R-trees can be thought of as binary search trees (BSTs) for geographical data. Both data structures achieve roughly O(log n) query complexity by hierarchically splitting the search space at different scales and exploiting this to rapidly narrow down the set of possible targets. R-trees are typically populated with boundary MBRs. Revgeocoder does this with build_rtree() at revgeocoder/src/utils/qindex.py. It then uses the R-tree to quickly narrow down the set of possible regions for every query point in the input data and runs PiP on the remaning candidate regions until it finds a match. Revgeocoder computes and stores the MBRs with compute_mbrs() in revgeocoder/src/utils/geodata.py. Below is a graphical representation of an R-tree that makes its underlying concepts simple to grasp.
 
 ![rtree-graphical-representation](https://github.com/meyassu/quaker/raw/main/documentation/img/rtree.png?raw=true)
 R-tree graphical representation.<br>
 
 #### Reverse Geocoding Algorithm
-As mentioned in [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree)
+As described in [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree), the core reverse geocoding algorithm, which is implemented in revgeocoder/src/core/rgc.py, consists of doing the following for every coordinate point in the input: query the R-tree to get the set of candidate regions and perform the PiP operation on each candidate region until a match is found. It is possible to carry out this process for large inputs with batch processing while using a raw CSV file on SSD as a rudimentary database but this is inferior to using a true relational database engine. Revgeocoder is designed to work with any PostGreSQL database the user specifies in their configuration file (details on configuration can be found in [Instructions](#instructions)), and minimizes the volume of in-memory computation via batch processing. The batch size can also be specified in the configuration file by the user. Revgeocoder interfaces with the database via the functions in revgeocoder/src/utils/database.py.
+
+### Infrastructure
+The only infrastructural component to Revgeocoder is its database connectivity. The important thing to note here is that Revgeocoder can work with any PostGreSQL database and even supports interaction with RDS-hosted databases as long as the program is executed from an AWS Cloud compute instance with IAM authentication privileges. This functionality was built with the boto3 AWS SDK.
 
 ### Econbot
 
@@ -93,3 +96,7 @@ As mentioned in [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree)
 
 
 ## Instructions
+
+
+
+## Future Work
