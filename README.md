@@ -78,7 +78,9 @@ The naive approach to reverse geocoding a geographical coordinate pair in the co
 
 The simplest optimization to this brute-force algorithm would be to implement basic quadrant filtering, which entails computing the geographical quadrant of the coordinate point, doing the same for every boundary in the dataset, eliminating all the boundaries outside of that quadrant, and running the PiP operation on the remaining candidate regions. To accelerate the categorization of boundaries into quadrants, it would be a good idea to temporarily replace the complex boundary polygons with minimum bounding rectangles (MBRs) just for this step since the margin of error introduced with this loss of precision is negligible in this context. This approach is better but ideally, there would be some way to replace quadrant filtering with a more fine-grained, and comparably fast, filtering algorithm. Happily, there is such an algorithm called R-tree-based filtering, which, while data-hungry, fits this criteria.
 
-R-trees can be thought of as binary search trees (BSTs) for geographical data. Both data structures achieve roughly O(log n) query complexity by hierarchically splitting the search space at different scales and exploiting this to rapidly narrow down the set of possible targets. R-trees are typically populated with boundary MBRs. Revgeocoder does this with build_rtree() at revgeocoder/src/utils/qindex.py. It then uses the R-tree to quickly narrow down the set of possible regions for every query point in the input data and runs PiP on the remaning candidate regions until it finds a match. Revgeocoder computes and stores the MBRs with compute_mbrs() in revgeocoder/src/utils/geodata.py. Below is a graphical representation of an R-tree that makes its underlying concepts simple to grasp.
+R-trees can be thought of as binary search trees (BSTs) for geographical data. Both data structures achieve roughly O(log n) query complexity by hierarchically splitting the search space at different scales and exploiting this to rapidly narrow down the set of possible targets. R-trees are typically populated with boundary MBRs. Revgeocoder does this with build_rtree() at revgeocoder/src/utils/qindex.py. It then uses the R-tree to quickly narrow down the set of possible regions for every query point in the input data and runs PiP on the remaning candidate regions until it finds a match. Revgeocoder computes and stores the MBRs with compute_mbrs() in revgeocoder/src/utils/geodata.py. 
+
+Below is a graphical representation of an R-tree that makes its underlying concepts simple to grasp.
 
 ![rtree-graphical-representation](https://github.com/meyassu/quaker/raw/main/documentation/img/rtree.png?raw=true)
 R-tree graphical representation.<br>
@@ -89,8 +91,14 @@ As described in [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree), t
 ### Infrastructure
 The only infrastructural component to Revgeocoder is its database connectivity. The important thing to note here is that Revgeocoder can work with any PostGreSQL database and even supports interaction with RDS-hosted databases as long as the program is executed from an AWS Cloud compute instance with IAM authentication privileges. This functionality was built with the boto3 AWS SDK.
 
-### Econbot
+Program logs can be found in revgeocoder/user_data/logs.txt after program execution.
 
+### Econbot
+Econbot is a Selenium-based web scraper that compiles a single coherent time-series rGDP dataset from many isolated files on the [FRED](https://fred.stlouisfed.org/) research site. It works by taking in a set of countries from a preloaded PostGreSQL database, querying the [FRED](https://fred.stlouisfed.org/) search engine for rGDP data for each country, ranking the search results according to some internal criteria, navigating to the best page, downloading the CSV files on the page, and then, once its finished going through all the different countries, combining all the CSV files into a single dataset. It then pushes the dataset to the remote PostGreSQL database specified by the user.
+
+At the moment, Econbot can only get data for a specific set of countries but in the future, it will be a fully generalized program. Currently, it just pushes pre-collected data to the user-specified database but its web-scraping capabilities can be called if post-2023 data is needed.
+
+Program logs can be found in econbot/logs/logs.txt after program execution.
 
 ## Repository Contents
 
