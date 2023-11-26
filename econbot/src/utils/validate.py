@@ -4,7 +4,7 @@ from src import LOGGER
 def validate_data(data_fpath):
     
     LOGGER.info('Validating data...')
-    
+
     is_valid = True
     error_message = ""
 
@@ -26,8 +26,8 @@ def validate_data(data_fpath):
         error_message += 'Validation failed: Empty records found' + '\n'
 
     # Check for valid range of values
-    # Assuming the year should be between 1900 and 2100 and rGDP should be positive
-    if not data['year'].between(1900, 2100).all():
+    # Assuming the year should be between 1800 and 2023 and rGDP should be positive
+    if not data['year'].between(1800, 2023).all():
         is_valid = False
         error_message += 'Validation failed: Year out of valid range' + '\n'
     
