@@ -1,6 +1,4 @@
 import pandas as pd
-import geopandas as gpd
-import numpy as np
 
 from sqlalchemy import create_engine, MetaData, Table, text
 from sqlalchemy.engine import URL
@@ -157,50 +155,6 @@ def write_table(data, table_name, if_exists, engine):
         LOGGER.error(f'Unexpected error: {e}')
         raise DataPushError(f'Unexpected error: {e}')
 
-def filter_table(small_table_name, big_table_name, fields, engine):
-    """
-    Creates subset table.
-
-    :param new_table_name: (str) -> name of new table
-    :param og_table_name: (str) -> name of original table
-    :param fields: (list) -> fields to include in the new table
-    :param engine: (SqlAlchemy.engine) -> object for remote database interaction
-
-    :return: (bool) -> indicates whether operation was sucessful
-    """
-
-    LOGGER.debug(f'Filtering {fields} from {big_table_name} into {small_table_name}...')
-
-    try:
-        # Open connection
-        with engine.connect() as connection:
-            # Drop table if it already exists
-            if _table_exists(small_table_name, connection):
-                drop_query = f'''
-                    DROP TABLE {small_table_name};
-                '''
-                connection.execute(text(drop_query))
-            
-            # Create new table with specified fields
-            quoted_fields = ', '.join([f'"{f}"' for f in fields])
-            create_query = f'''
-                CREATE TABLE {small_table_name} AS
-                SELECT {quoted_fields}
-                FROM {big_table_name};
-            '''
-            connection.execute(text(create_query))
-            connection.commit()
-            return True
-    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
-        LOGGER.error(f'Error connecting to database: {e}')
-        raise DatabaseConnectionError(f'Error connecting to database: {e}')
-    except sqlalchemy_exc.SQLAlchemyError as e: # Handle query execution error
-        LOGGER.error(f'Error execuring query: {e}')
-        raise QueryExecutionError(f'Error execuring query: {e}') 
-    except Exception as e:
-        LOGGER.error(f'Unexpected error: {e}')
-        raise Exception(f'Unexpected error: {e}')
-
 def add_fields(table_name, fields, engine):
     """
     Adds fields to given table.
@@ -241,43 +195,6 @@ def add_fields(table_name, fields, engine):
         LOGGER.error(f'Unexpected error: {e}')
         raise Exception(f'Unexpected error: {e}')
 
-def drop_fields(table_name, fields, engine):
-    """
-    Drop fields from database.
-
-    :param table_name: (str) -> the name of the table
-    :param fields: (list<st>) -> the fields that need to be dropped
-    :param engine: (SQLAlchemy.engine) -> the database engine 
-    """
-    
-    LOGGER.debug(f'Dropping {fields} from {table_name}...')
-
-    try:
-        # Open connection
-        with engine.connect() as connection:
-            # Ensure table exists
-            if not _table_exists(table_name, connection):
-                LOGGER.error(f'{table_name} does not exist.')
-                raise TableExistenceError(f'{table_name} does not exist.')
-            
-            # Drop fields
-            for field in fields:
-                drop_query = f'''
-                    ALTER TABLE {table_name}
-                    DROP "{field}";
-                    '''
-                connection.execute(text(drop_query))
-            connection.commit()
-    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
-        LOGGER.error(f'Error connecting to database: {e}')
-        raise DatabaseConnectionError(f'Error connecting to database: {e}')
-    except sqlalchemy_exc.SQLAlchemyError as e:  # Handle query execution error
-        LOGGER.error(f'Error executing query: {e}')
-        raise QueryExecutionError(f'Error executing query: {e}')
-    except Exception as e:
-        LOGGER.error(f'Unexpected error: {e}')
-        raise Exception(f'Unexpected error: {e}')
-
 
 def _table_exists(table_name, connection):
     """
@@ -296,34 +213,6 @@ def _table_exists(table_name, connection):
         result = connection.execute(text(check_query))
         table_exists = result.scalar() is not None
         return table_exists
-    except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
-        LOGGER.error(f'Error connecting to database {e}')
-        raise DatabaseConnectionError(f'Error connecting to database {e}')
-    except sqlalchemy_exc.SQLAlchemyError as e: # Handle SQLAlchemy query execution error
-        LOGGER.error(f'Error executing query: {e}')
-        raise QueryExecutionError(f'Error executing query: {e}')
-    except Exception as e:                      # Catch-all
-        LOGGER.error(f'Unexpected error: {e}')
-        raise QueryExecutionError(f'Unexpected error: {e}')
-
-def clear_table(table_name, engine):
-    """
-    Clears table.
-
-    :param table_name: (str) -> the target table
-    :param engine: (SQLAlchemy.engine) -> the engine
-
-    :return: (bool) -> indicates whether operation was sucessful
-    """
-
-    LOGGER.debug(f'Clearing {table_name}...')
-
-    try:
-        with engine.connect() as connection:
-            clear_query = f'DELETE FROM {table_name};'
-            connection.execute(text(clear_query))
-            connection.commit()
-            return True
     except sqlalchemy_exc.DBAPIError as e:      # Handle DB connection error
         LOGGER.error(f'Error connecting to database {e}')
         raise DatabaseConnectionError(f'Error connecting to database {e}')
@@ -443,7 +332,7 @@ def get_data(query, engine):
 """
 Display database
 """
-def view_database(tables, engine):
+def view_database(engine):
     """
     View all tables in the given database.
 
