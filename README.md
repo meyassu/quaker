@@ -102,7 +102,7 @@ As mentioned in [Infrastructure][#infrastructure], Revgeocoder is a containerize
     a) create an empty directory called ```data``` <br>
     b) data/ must consist of the following subdirectories: config, input, and output <br>
        &emsp;&emsp;i) config: this directory must contain a .env file with the following fields: <br>
-            &emsp;&emsp;- ```DATA_TABLE_NAME```: the table that will store the input data in input/ <br>
+            &emsp;&emsp;&emsp;- ```DATA_TABLE_NAME```: the table that will store the input data in input/ <br>
             &emsp;- ```LOCATION_TABLE_NAME```: the table that will store the (country, province) tuples outputted by Revgeocoder <br>
             - ```RDS```: must be either ```TRUE``` or ```FALSE``` and indicates whether the user database is hosted on an RDS instance <br>
             - ```REGION```: must be included if ```RDS=TRUE```; the region of the connected AWS compute instance <br>
