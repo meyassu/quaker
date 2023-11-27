@@ -75,7 +75,7 @@ Revgeocoder is a general-purpose reverse geocoder. It takes in as input data any
 #### Reverse Geocoding Algorithm
 Revgeocoder depends on an R-tree populated with an extensive boundary dataset for spatial indexing (more information on this can be found in [Boundary Dataset](#boundary-dataset) and [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree)). The core algorithm, which is implemented in ```revgeocoder/src/core/rgc.py```, consists of doing the following for every coordinate point in the input: query the R-tree to quickly narrow down the set of candidate regions and perform a Point-in-Polygon (PiP) operation on each candidate region until a match is found. If any point is matched with a maritime boundary, Revgeocoder checks to see if there are any coastlines within 370.4 km (the UN specified buffer distance within which nations are authorized to exploit the ocean for economic resources), and if there are, it matches the point with that country. 
 
-It is possible to carry out this process for large inputs with batch processing while using a raw CSV file on SSD as a rudimentary database but this is inferior to using a true relational database engine. Revgeocoder uses a PostGreSQL database on the backend to efficiently perform batch processing on the data. At this time, the central database environment cannot handle several concurrent connections, so the user must provide connection details and credentials to their own PostGreSQL instance in a configuration file. Admittedly, this will probably raise justifiable security concerns for users. The central backend database will be ready to support concurrent connections soon though, so this is just a temporary stand-in solution. The batch size can also be specified in the configuration file by the user. More information on the input configuration file and other execution steps can be found in [Instructions](#instructions-2). Revgeocoder interfaces with the database via the functions in ```revgeocoder/src/utils/database.py```.
+It is possible to carry out this process for large inputs with batch processing while using a raw CSV file on SSD as a rudimentary database but this is inferior to using a true relational database engine. Revgeocoder uses a PostGreSQL database on the backend to efficiently perform batch processing on the data. At this time, the central database environment cannot handle several concurrent connections, so the user must provide connection details and credentials to their own PostGreSQL instance in a configuration file. Admittedly, this will probably raise justifiable security concerns for users. The central backend database will be ready to support concurrent connections soon though, so this is just a temporary stand-in solution. The batch size can also be specified in the configuration file by the user. More information on the input configuration file and other execution steps can be found in [Instructions](#instructions-1). Revgeocoder interfaces with the database via the functions in ```revgeocoder/src/utils/database.py```.
 
 #### Boundary Dataset
 The boundary data is sourced from a community-run site known as [NaturalEarth](https://www.naturalearthdata.com/downloads/). All of the land boundaries are at the provicial level (e.g. states, administrative regions) and the maritime boundaries include seas, oceans, and some lakes although most small bodies of water are excluded from the dataset.
@@ -156,7 +156,7 @@ Note on user-specified databases: both Revgeocoder and Econbot can work with any
 - ```.gitignore```: the project .gitignore
 - ```Quaker.qvf```: the importable Qlik Sense file with all the visualizations
 - ```README.md```: this file for documentation
-- ```run-revgeocoder.sh```: the bash script for running Revgeocoder (more details can be found at [Instructions](#instructions-2))
+- ```run-revgeocoder.sh```: the bash script for running Revgeocoder (more details can be found at [Instructions](#instructions-1))
 - ```examples/revgeocoder/data```: example input directory for Revgeocoder 
     - ```config/```: configuration files
     - ```input/```: input data file
@@ -165,7 +165,7 @@ Note on user-specified databases: both Revgeocoder and Econbot can work with any
 ### Revgeocoder
 - ```revgeocoder/```
     - ```logs/```: stores program logs written during runtime
-    - ```user_data/```: mounting point for user data within container (more details can be found at [Instructions](#instructions-2))
+    - ```user_data/```: mounting point for user data within container (more details can be found at [Instructions](#instructions-1))
     - ```.dockerignore```: the .dockerignore for Revgeocoder <br>
     - ```Dockerfile```: the Dockerfile for Revgeocoder <br>
     - ```environment.yml```: serialization of environment that Docker uses to build the various dependencies within the Revgeocoder container
