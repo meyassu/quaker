@@ -5,7 +5,6 @@
 - [The Data](#the-data)
 - [Modules](#modules)
 - [Repository Contents](#repository-contents)
-- [Instructions](#instructions)
 
 ## Overview
 Welcome to Quaker, a repository built to visualize the spatiotemporal distribution of severe earthquakes and their effects on regional macroeconomic variables such as real GDP (rGDP) using geospatial libraries and the Qlik Sense platform. Quaker is based on an extensive dataset on seismic activity provided by the National Earthquake Information Center (NEIC) and made available on [Kaggle](https://www.kaggle.com/datasets/usgs/earthquake-database) and a large time-series economic dataset on rGDP trends collected from the archives of the [Federal Reserve Bank of St. Louis](https://fred.stlouisfed.org/) (FRED). 
@@ -38,10 +37,15 @@ Both datasets were run through a validation process to ensure that they do not c
 ## Visualizations
 
 ### Spatiotemporal Distribution of Earthquakes
-The spatial distribution of earthquakes is concentrated most around the Ring of Fire, a seismically active area encircling the Pacific Ocean, and Oceania. The data reflects a weak positive variance between earthquake frequency and time. These visualizations are interactive; users can change the year being displayed and the lower bound on magnitude. Below are screenshots from the Qlik Sense Platform. 
+The spatial distribution of earthquakes is concentrated most around the Ring of Fire, a seismically active area encircling the Pacific Ocean, and Oceania. The data reflects a weak positive variance between earthquake frequency and time. These visualizations are interactive; users can change the year being displayed and the lower bound on magnitude. 
 
-To access the visualizations and the associated stories directly on your local machine, see the [Instructions](#instructions) section.
+To access the visualizations and the associated stories directly on your local machine, see the next section.
 
+#### Instructions
+
+
+#### Visualization Snapshots
+Below are some snapshots of the visualizations from the Qlik Sense Platform. 
 ![spatiotemporal-visualization-1987](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquake_st_distribution.png?raw=true)
 Global spatial distribution of earthquakes with magnitude > 6 on Richter scale in 1987.<br><br>
 
@@ -53,10 +57,15 @@ Closer look at Japan earthquakes in 2011.<br><br>
 
 
 ### Economic Effects of Earthquakes 
-The countries included in these datasets showed a surprising economic resilience to severe earthquakes in that annual rGDP generally remained constant or rose even through seismically intense periods. The most striking example of this is the Japanese economy in the early 2010s.  These visualizations are interactive; users can change the year and country being displayed. Below are screenshots from the Qlik Sense Platform. 
+The countries included in these datasets showed a surprising economic resilience to severe earthquakes in that annual rGDP generally remained constant or rose even through seismically intense periods. The most striking example of this is the Japanese economy in the early 2010s.  These visualizations are interactive; users can change the year and country being displayed. 
 
-To access the visualizations and stories directly on your local machine, see the [Instructions](#instructions) section.
+To access the visualizations and the associated stories directly on your local machine, see the next section.
 
+#### Instructions
+
+
+#### Visualization Snapshots
+Below are some snapshots of the visualizations from the Qlik Sense Platform.
 ![spatiotemporal-visualization-1987](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquakes_rgdp.png?raw=true)
 Time-series rGDP data parallel with time-series earthquake frequency data.<br><br>
 
@@ -71,7 +80,7 @@ Revgeocoder is a general-purpose reverse geocoder. It takes in as input data any
 #### Reverse Geocoding Algorithm
 Revgeocoder depends on an R-tree populated with an extensive boundary dataset for spatial indexing (more information on this can be found in [Boundary Dataset](#boundary-dataset) and [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree)). The core algorithm, which is implemented in ```revgeocoder/src/core/rgc.py```, consists of doing the following for every coordinate point in the input: query the R-tree to quickly narrow down the set of candidate regions and perform a Point-in-Polygon (PiP) operation on each candidate region until a match is found. If any point is matched with a maritime boundary, Revgeocoder checks to see if there are any coastlines within 370.4 km (the UN specified buffer distance within which nations are authorized to exploit the ocean for economic resources), and if there are, it matches the point with that country. 
 
-It is possible to carry out this process for large inputs with batch processing while using a raw CSV file on SSD as a rudimentary database but this is inferior to using a true relational database engine. Revgeocoder uses a PostGreSQL database on the backend to efficiently perform batch processing on the data. At this time, the central database environment is under development, so the user must provide connection details and credentials to their own PostGreSQL instance in a configuration file. This is perfectly safe since the software is designed to be run locally. The batch size can also be specified in the configuration file by the user. More information on the input configuration file and other execution steps can be found in [Instructions](#instructions). Revgeocoder interfaces with the database via the functions in ```revgeocoder/src/utils/database.py```.
+It is possible to carry out this process for large inputs with batch processing while using a raw CSV file on SSD as a rudimentary database but this is inferior to using a true relational database engine. Revgeocoder uses a PostGreSQL database on the backend to efficiently perform batch processing on the data. At this time, the central database environment is under development, so the user must provide connection details and credentials to their own PostGreSQL instance in a configuration file. Admittedly, this will probably raise justifiable security concerns for users; the central backend database should be up soon, though, so this is just a temporary stand-in solution. The batch size can also be specified in the configuration file by the user. More information on the input configuration file and other execution steps can be found in [Instructions](#instructions). Revgeocoder interfaces with the database via the functions in ```revgeocoder/src/utils/database.py```.
 
 #### Boundary Dataset
 The boundary data is sourced from a community-run site known as [NaturalEarth](https://www.naturalearthdata.com/downloads/). All of the land boundaries are at the provicial level (e.g. states, administrative regions) and the maritime boundaries include seas, oceans, and some lakes although most small bodies of water are excluded from the dataset.
@@ -126,20 +135,22 @@ To run Revgeocoder with the example data in examples/revgeocoder/data, do the fo
 Revgeocoder will use a designated backend database on a staging environment to run this process.
 
 
-    
-
-
-
-~~~
-
-~~~
+#### Future Work
+Revgeocoder currently works well but needs a centralized backend database of its own instead of relying on users to provision storage resources on its behalf. Currently working towards this. Also, Revgeocoder could generate arbitrarily large training datasets that could be used to develop model-based reverse geocoders. This is also an interesting possibility.
 
 ### Econbot
 Econbot is a Selenium-based web scraper that compiles a single coherent time-series rGDP dataset from many isolated files on the [FRED](https://fred.stlouisfed.org/) research site. It works by taking in a set of countries from a CSV file, querying the site search engine for rGDP data for each country, ranking the search results according to some internal criteria, navigating to the best page, downloading the CSV files on the page, and then, once its finished going through all the different countries, combining all the files into a single CSV. 
 
-At the moment, Econbot can only get data for a specific set of countries but in the future, it will be a fully generalized program. Currently, its mostly an inert container for the precollected data at econbot/data/rgdp.csv. It can push this precollected data to a database if the user specifies the connection details and credentials in the .env file (more information on configuration and execution in [Instructions](#instructions)). Its web-scraping capabilities can be called if post-2023 data is needed.
+At the moment, Econbot can only get data for a specific set of countries but in the future, it will be a fully generalized program. Currently, its mostly an inert container for the precollected data at econbot/data/rgdp.csv. All of the source code is publicly available though and its web-scraping capabilities can still be called though if post-2023 data is needed.
 
-Program logs can be found in econbot/logs/logs.txt after program execution.
+Program logs can be found in ```econbot/logs/logs.txt`` after program execution.
+
+#### Instructions
+To access the rGDP data directly, go to ```econbot/data/rgdp.csv``` and download the CSV file. To run the web scraper itself, either create a main.py file in ```src/``` and go from there or write code directly in ```src/core/econbot.py``` under a ```if __name__ == '__main___' clause```.
+
+#### Future Work
+Ideally, Econbot would be able to get up-to-date information for any combination of country and macroeconomic variable from the FRED site. Currently working towards this as there would be significant benefit in a tool like this for economic analysis applications.
+
 
 Note on user-specified databases: both Revgeocoder and Econbot can work with any PostGreSQL database and even support interaction with RDS-hosted databases as long as the program is executed from an AWS Cloud compute instance with IAM authentication privileges. This functionality was built with the boto3 AWS SDK.
 
@@ -196,19 +207,3 @@ Note on user-specified databases: both Revgeocoder and Econbot can work with any
             - database.py: host of functions for interacting with user-specified PostGreSQL database
             - exceptions.py: set of custom exception classes to improve error specificity
             - validate.py: validates rGDP dataset created via web scraping
-
-## Instructions
-
-### Revgeocoder
-As mentioned in the [Introduction](#introduction), Revgeocoder is a general-purpose reverse geocoder that works on any CSV with the    
-
-
-### Econbot
-
-## Future Work
-
-### Revgeocoder
-
-### Econbot
-    - train random-forest model
-    - single backend database capable of handling several concurrent connections / managing tables etc.
