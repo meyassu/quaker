@@ -1,14 +1,12 @@
 import pandas as pd
 from src import LOGGER
 
-def validate_data(data_fpath):
+def validate_data(data):
     
     LOGGER.info('Validating data...')
 
     is_valid = True
     error_message = ""
-
-    data = pd.read_csv(data_fpath)
 
     # Check for missing values
     if data.isnull().values.any():
@@ -27,7 +25,7 @@ def validate_data(data_fpath):
 
     # Check for valid range of values
     # Assuming the year should be between 1800 and 2023 and rGDP should be positive
-    if not data['year'].between(1800, 2023).all():
+    if not data['Year'].between(1800, 2023).all():
         is_valid = False
         error_message += 'Validation failed: Year out of valid range' + '\n'
     

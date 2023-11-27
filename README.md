@@ -39,11 +39,6 @@ Both datasets were run through a validation process to ensure that they do not c
 ### Spatiotemporal Distribution of Earthquakes
 The spatial distribution of earthquakes is concentrated most around the Ring of Fire, a seismically active area encircling the Pacific Ocean, and Oceania. The data reflects a weak positive variance between earthquake frequency and time. These visualizations are interactive; users can change the year being displayed and the lower bound on magnitude. 
 
-To access the visualizations and the associated stories directly on your local machine, see the next section.
-
-#### Instructions
-
-
 #### Visualization Snapshots
 Below are some snapshots of the visualizations from the Qlik Sense Platform. 
 ![spatiotemporal-visualization-1987](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquake_st_distribution.png?raw=true)
@@ -59,11 +54,6 @@ Closer look at Japan earthquakes in 2011.<br><br>
 ### Economic Effects of Earthquakes 
 The countries included in these datasets showed a surprising economic resilience to severe earthquakes in that annual rGDP generally remained constant or rose even through seismically intense periods. The most striking example of this is the Japanese economy in the early 2010s.  These visualizations are interactive; users can change the year and country being displayed. 
 
-To access the visualizations and the associated stories directly on your local machine, see the next section.
-
-#### Instructions
-
-
 #### Visualization Snapshots
 Below are some snapshots of the visualizations from the Qlik Sense Platform.
 ![spatiotemporal-visualization-1987](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquakes_rgdp.png?raw=true)
@@ -71,6 +61,9 @@ Time-series rGDP data parallel with time-series earthquake frequency data.<br><b
 
 ![spatiotemporal-visualization-2011](https://github.com/meyassu/quaker/raw/main/documentation/img/earthquakes_rgdp_japan.png?raw=true)
 Japanese rGDP resilient to 2011 catastrophes.<br><br>
+
+### Instructions
+To access the visualizations and associated stories directly, import the Quaker.qvf file into Qlik Sense. To configure the database connection, you need the temporary staging database credentials. Please contact me at matthiaseyassu@gmail.com to get access to this for now. 
 
 ## Modules
 
@@ -129,10 +122,10 @@ As mentioned in [Infrastructure][#infrastructure], Revgeocoder is a containerize
 To run Revgeocoder with the example data in examples/revgeocoder/data, do the following:
 1) Install Docker
 2) Download run-revgeocoder.sh
-3) Download examples/revgeocoder/data
+3) Download ```examples/revgeocoder/data``
 4) Type ```chmod +x run-revgeocoder.sh``` to enable execute bit on bash script
 5) Run ```./run-revgeocoder.sh <ABSOLUTE_FILEPATH_DATA_DIR>```
-Revgeocoder will use a designated backend database on a staging environment to run this process.
+```data/config/``` does not contain a .env file for security reasons. If you would like to use the temporary database instance on the staging environment to test this software, please contact me at matthiaseyassu@gmail.com for the credentials.
 
 
 #### Future Work
@@ -146,7 +139,7 @@ At the moment, Econbot can only get data for a specific set of countries but in 
 Program logs can be found in ```econbot/logs/logs.txt`` after program execution.
 
 #### Instructions
-To access the rGDP data directly, go to ```econbot/data/rgdp.csv``` and download the CSV file. To run the web scraper itself, either create a main.py file in ```src/``` and go from there or write code directly in ```src/core/econbot.py``` under a ```if __name__ == '__main___' clause```.
+To access the rGDP data directly, go to ```econbot/data/rgdp.csv``` and download the CSV file. To run the web scraper itself, either create a main.py file in ```src/``` and go from there or write code directly in ```src/core/econbot.py``` under a ```if __name__ == '__main___' clause```. Make sure to create a Conda environment using environment.yml before writing any driver programs though; this can be done with the following command: ```conda env create -f environment.yml```
 
 #### Future Work
 Ideally, Econbot would be able to get up-to-date information for any combination of country and macroeconomic variable from the FRED site. Currently working towards this as there would be significant benefit in a tool like this for economic analysis applications.
