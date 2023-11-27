@@ -14,9 +14,9 @@ This repository is made up of two independent modules: Revgeocoder and Econbot.
 
 Revgeocoder is an efficient, general-purpose reverse geocoder built from scratch. To create visualizations of the effects of severe seismic activity on local rGDP trends, there needs to be a uniform system for representing geographical data across both the earthquake and economic datasets. The issue is earthquake datasets represent geographical location with (latitude, longitude) coordinates while economic datasets represent location in geopolitical terms i.e. (country, province) tuples. Revgeocoder bridges this gap by translating coordinate data into human-readable geolocation information. It can perform this computation on any dataset regardless of its structure as long as it contains columns called 'latitude' and 'longitude'. Its internal algorithm, supporting libraries, and instructions to run it will be described further in [Revgeocoder](#revgeocoder).
 
-Econbot is the web scraper responsible for creating the rGDP time-series dataset. It works by navigating to the FRED website, downloading region-specific rGDP data for > 100 countries as CSV files, and then collating all the CSVs into a single coherent dataset. More details regarding Econbot, including instructions to run it locally can be found in [Econbot](#econbot).
+Econbot is the web scraper responsible for creating the rGDP time-series dataset. It works by navigating to the FRED website, downloading region-specific rGDP data for > 100 countries as CSV files, and then collating all the CSVs into a single coherent dataset. More information regarding Econbot, including instructions to run it locally can be found in [Econbot](#econbot).
 
-Both of these backend modules will be discussed after the datasets and the visualizations are presented.
+The modules will be discussed in more detail after the datasets and the visualizations are presented.
 
 ## The Data
 
@@ -68,6 +68,8 @@ Japanese rGDP resilient to 2011 catastrophes.<br><br>
 ### Revgeocoder
 Revgeocoder is a general-purpose reverse geocoder. It works by indexing an exhaustive dataset containing the geometry and location of every geographical boundary in the world, both maritime and land, with an R-tree, narrowing down the set of possible regions with the R-tree for every query point, and then performing a Point-in-Polygon (PiP) operation on the filtered set of regions. Each of these components of Revgeocoder will be discussed here.
 
+Program logs can be found in revgeocoder/user_data/logs.txt after program execution.
+
 #### Boundary Dataset
 The boundary data is sourced from a community-run site known as [NaturalEarth](https://www.naturalearthdata.com/downloads/). All of the land boundaries are at the provicial level (e.g. states, administrative regions) and the maritime boundaries include seas, oceans, and some lakes although most small bodies of water are excluded from the dataset.
 
@@ -86,25 +88,85 @@ Below is a graphical representation of an R-tree that makes its underlying conce
 R-tree graphical representation.<br>
 
 #### Reverse Geocoding Algorithm
-As described in [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree), the core reverse geocoding algorithm, which is implemented in revgeocoder/src/core/rgc.py, consists of doing the following for every coordinate point in the input: query the R-tree to get the set of candidate regions and perform the PiP operation on each candidate region until a match is found. It is possible to carry out this process for large inputs with batch processing while using a raw CSV file on SSD as a rudimentary database but this is inferior to using a true relational database engine. Revgeocoder is designed to work with any PostGreSQL database the user specifies in their configuration file (details on configuration can be found in [Instructions](#instructions)), and minimizes the volume of in-memory computation via batch processing. The batch size can also be specified in the configuration file by the user. Revgeocoder interfaces with the database via the functions in revgeocoder/src/utils/database.py.
+As described in [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree), the core reverse geocoding algorithm, which is implemented in revgeocoder/src/core/rgc.py, consists of doing the following for every coordinate point in the input: query the R-tree to get the set of candidate regions and perform the PiP operation on each candidate region until a match is found. It also does an additional step not mentioned in the previous section. If the point is matched with a maritime boundary, it checks to see if there are any coastlines within 370.4 km (the UN specified buffer distance within which nations are authorized to exploit the ocean for economic resources), and if there are, it matches the point with that country.
 
-### Infrastructure
-The only infrastructural component to Revgeocoder is its database connectivity. The important thing to note here is that Revgeocoder can work with any PostGreSQL database and even supports interaction with RDS-hosted databases as long as the program is executed from an AWS Cloud compute instance with IAM authentication privileges. This functionality was built with the boto3 AWS SDK.
+It is possible to carry out this process for large inputs with batch processing while using a raw CSV file on SSD as a rudimentary database but this is inferior to using a true relational database engine. Revgeocoder is designed to work with any PostGreSQL database the user specifies in their configuration file (details on configuration can be found in [Instructions](#instructions)), and minimizes the volume of in-memory computation via batch processing. The batch size can also be specified in the configuration file by the user. Revgeocoder interfaces with the database via the functions in revgeocoder/src/utils/database.py.
 
-Program logs can be found in revgeocoder/user_data/logs.txt after program execution.
+#### Infrastructure
+Revgeocoder is a containerized application with a Docker image at [meyassu/revgeocoder:latest](https://hub.docker.com/repository/docker/meyassu/revgeocoder/general) on Docker Hub so it can be executed on any machine running Docker. It also has a simple CI/CD pipeline which automatically builds the Docker image from the Dockerfile and pushes it up to Docker Hub whenever there is a 'git push' event that impacts the revgeocoder/ directory. The pipeline definition can be found at .github/workflows/main.yml.
 
 ### Econbot
-Econbot is a Selenium-based web scraper that compiles a single coherent time-series rGDP dataset from many isolated files on the [FRED](https://fred.stlouisfed.org/) research site. It works by taking in a set of countries from a preloaded PostGreSQL database, querying the [FRED](https://fred.stlouisfed.org/) search engine for rGDP data for each country, ranking the search results according to some internal criteria, navigating to the best page, downloading the CSV files on the page, and then, once its finished going through all the different countries, combining all the CSV files into a single dataset. It then pushes the dataset to the remote PostGreSQL database specified by the user.
+Econbot is a Selenium-based web scraper that compiles a single coherent time-series rGDP dataset from many isolated files on the [FRED](https://fred.stlouisfed.org/) research site. It works by taking in a set of countries from a preloaded PostGreSQL database, querying the site search engine for rGDP data for each country, ranking the search results according to some internal criteria, navigating to the best page, downloading the CSV files on the page, and then, once its finished going through all the different countries, combining all the CSV files into a single dataset. It then pushes the dataset to the remote PostGreSQL database specified by the user. Econbot interfaces with the database via the functions in econbot/src/utils/database.py.
 
 At the moment, Econbot can only get data for a specific set of countries but in the future, it will be a fully generalized program. Currently, it just pushes pre-collected data to the user-specified database but its web-scraping capabilities can be called if post-2023 data is needed.
 
 Program logs can be found in econbot/logs/logs.txt after program execution.
 
-## Repository Contents
+Both modules can work with any PostGreSQL database and even support interaction with RDS-hosted databases as long as the program is executed from an AWS Cloud compute instance with IAM authentication privileges. This functionality was built with the boto3 AWS SDK.
 
+## Repository Contents
+- .github/workflows/main.yml: CI/CD pipeline definition
+- documentation/img/: images for README.md
+- .gitignore: the project .gitignore
+- Quaker.qvf: the importable Qlik Sense file with all the visualizations
+- README.md: this file for documentation
+- run-revgeocoder.sh: the bash script for running Revgeocoder (more details can be found at [Instructions](#instructions))
+- examples/revgeocoder/data: example input directory for Revgeocoder 
+    - config/: configuration files
+    - input/: input data file
+    - output/: output directory
+
+### Revgeocoder
+- revgeocoder
+    - logs/: stores program logs written during runtime
+    - user_data/: mounting point for user data within container (more details can be found at [Instructions](#instructions))
+    - .dockerignore: the .dockerignore for Revgeocoder
+    - Dockerfile: the Dockerfile for Revgeocoder
+    - environment.yml: serialization of environment that Docker uses to build the various dependencies within the Revgeocoder container
+    - data/internal/
+        - boundaries.geojson: boundary data for every province and large body of water on the planet
+        - mbrs.geojson: the minimum bounding rectangles (MBRs) for each boundary in boundary.geojson; used for spatial indexing with R-tree
+    - src/
+        - __init__.py: runs basic configuration processes for module
+        - main.py: driver program for Revgeocoder
+        - core/
+            - __init__.py: empty file used to mark core/ as a standalone module
+            - qindex.py: pulls from data/interna/mbrs.geojson to build the R-tree for spatial indexing
+            - rgc.py: core reverse geocoding process
+        - utils/
+            - __init__.py: empty file used to mark utils/ as a standalone module
+            - database.py: host of functions for interacting with user-specified PostGreSQL database
+            - exceptions.py: set of custom exception classes to improve error specificity
+            - geodata.py: few functions for dealing with geospatial data
+            - validate.py: validates earthquake dataset
+
+### Econbot
+- econbot
+    - logs/: stores program logs written during runtime
+    - environment.yml: serialization of environment / dependencies
+    - data/internal/
+        - rgdp.csv: rGDP data for limited set of countries
+    - src/:
+        - __init__.py: empty file used to mark core/ as a standalone module
+        - main.py: driver program for Econbot
+        - core/
+            - __init__.py: empty file used to mark core/ as a standalone module
+            - econbot.py: web scraping functions
+        - utils/
+            - __init__.py: empty file used to mark core/ as a standalone module
+            - database.py: host of functions for interacting with user-specified PostGreSQL database
+            - exceptions.py: set of custom exception classes to improve error specificity
+            - validate.py: validates rGDP dataset created via web scraping
 
 ## Instructions
 
+### Revgeocoder
 
+### Econbot
 
 ## Future Work
+
+### Revgeocoder
+
+### Econbot
+    - train random-forest model
