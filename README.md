@@ -66,24 +66,24 @@ Japanese rGDP resilient to 2011 catastrophes.<br><br>
 ## Modules
 
 ### Revgeocoder
-Revgeocoder is a general-purpose reverse geocoder. It takes in as input data any raw CSV file with columns named 'longitude' and 'latitude' and returns as output the exact same CSV file with the additional columns 'province' and 'country'. 
+Revgeocoder is a general-purpose reverse geocoder. It takes in as input data any raw CSV file with columns named ```longitude``` and ```latitude``` and returns as output the exact same CSV file with the additional columns ```province``` and ```country```. 
 
 #### Reverse Geocoding Algorithm
-Revgeocoder depends on an R-tree populated with an extensive boundary dataset for spatial indexing (more information on this in [Boundary Dataset](#boundary-dataset) and [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree)). The core algorithm, which is implemented in revgeocoder/src/core/rgc.py, consists of doing the following for every coordinate point in the input: query the R-tree to quickly narrow down the set of candidate regions and perform a Point-in-Polygon (PiP) operation on each candidate region until a match is found. If any point is matched with a maritime boundary, Revgeocoder checks to see if there are any coastlines within 370.4 km (the UN specified buffer distance within which nations are authorized to exploit the ocean for economic resources), and if there are, it matches the point with that country. 
+Revgeocoder depends on an R-tree populated with an extensive boundary dataset for spatial indexing (more information on this can be found in [Boundary Dataset](#boundary-dataset) and [Spatial Indexing with R-tree](#spatial-indexing-with-r-tree)). The core algorithm, which is implemented in ```revgeocoder/src/core/rgc.py```, consists of doing the following for every coordinate point in the input: query the R-tree to quickly narrow down the set of candidate regions and perform a Point-in-Polygon (PiP) operation on each candidate region until a match is found. If any point is matched with a maritime boundary, Revgeocoder checks to see if there are any coastlines within 370.4 km (the UN specified buffer distance within which nations are authorized to exploit the ocean for economic resources), and if there are, it matches the point with that country. 
 
-It is possible to carry out this process for large inputs with batch processing while using a raw CSV file on SSD as a rudimentary database but this is inferior to using a true relational database engine. Revgeocoder uses a PostGreSQL database on the backend to efficiently perform batch processing on the data. At this time, the central database environment is under development, so the user must provide connection details and credentials to their own PostGreSQL instance in a configuration file. This is perfectly safe since the software is designed to be run locally. The batch size can also be specified in the configuration file by the user. More information on the input configuration file and other execution steps can be found in [Instructions](#instructions). Revgeocoder interfaces with the database via the functions in revgeocoder/src/utils/database.py.
+It is possible to carry out this process for large inputs with batch processing while using a raw CSV file on SSD as a rudimentary database but this is inferior to using a true relational database engine. Revgeocoder uses a PostGreSQL database on the backend to efficiently perform batch processing on the data. At this time, the central database environment is under development, so the user must provide connection details and credentials to their own PostGreSQL instance in a configuration file. This is perfectly safe since the software is designed to be run locally. The batch size can also be specified in the configuration file by the user. More information on the input configuration file and other execution steps can be found in [Instructions](#instructions). Revgeocoder interfaces with the database via the functions in ```revgeocoder/src/utils/database.py```.
 
 #### Boundary Dataset
 The boundary data is sourced from a community-run site known as [NaturalEarth](https://www.naturalearthdata.com/downloads/). All of the land boundaries are at the provicial level (e.g. states, administrative regions) and the maritime boundaries include seas, oceans, and some lakes although most small bodies of water are excluded from the dataset.
 
-NaturalEarth ships all boundary data as a Shapefile directory with several files, each encoding a specific component of the geographical data. It also delivers maritime and land boundary data in separate Shapefile directories. Revgeocoder has a function in revgeocoder/src/utils/geodata.py called _shapefile_to_geojson() which can compress any Shapefile directory into a single GeoJSON file. _shapefile_to_geojson() was used to combine the maritime and land boundary data into a single GeoJSON file called boundaries.geojson located at revgeocoder/data/internal/. This file is the authoritative source of truth for boundary data in this module.
+NaturalEarth ships all boundary data as a Shapefile directory with several files, each encoding a specific component of the geographical data. It also delivers maritime and land boundary data in separate Shapefile directories. Revgeocoder has a function in ```revgeocoder/src/utils/geodata.py``` called ```_shapefile_to_geojson()``` which can compress any Shapefile directory into a single GeoJSON file. ```_shapefile_to_geojson()``` was used to combine the maritime and land boundary data into a single GeoJSON file called boundaries.geojson located at ```revgeocoder/data/internal/```. This file is the authoritative source of truth for boundary data in this module.
 
 #### Spatial Indexing with R-tree
-The naive approach to reverse geocoding a geographical coordinate pair in the context of this project would be to run a PiP operation for the point on every boundary available in boundaries.geojson. Although simple, this algorithm is inefficient with an upper bound complexity of something like O(n * m * p) where n is the number of coordinate pairs in the input, m is the number of boundaries in the dataset, and p is the average number of vertices in the boundary polygons.
+The naive approach to reverse geocoding a geographical coordinate pair in the context of this project would be to run a PiP operation for the point on every boundary available in boundaries.geojson. Although simple, this algorithm is inefficient with an upper bound complexity of something like ```O(n * m * p)``` where ```n``` is the number of coordinate pairs in the input, ```m``` is the number of boundaries in the dataset, and ```p``` is the average number of vertices in the boundary polygons.
 
 The simplest optimization to this brute-force algorithm would be to implement basic quadrant filtering, which entails computing the geographical quadrant of the coordinate point, doing the same for every boundary in the dataset, eliminating all the boundaries outside of that quadrant, and running the PiP operation on the remaining candidate regions. To accelerate the categorization of boundaries into quadrants, it would be a good idea to temporarily replace the complex boundary polygons with minimum bounding rectangles (MBRs) just for this step since the margin of error introduced with this loss of precision is negligible in this context. This approach is better but ideally, there would be some way to replace quadrant filtering with a more fine-grained, and comparably fast, filtering algorithm. Happily, there is such an algorithm called R-tree-based filtering, which, while data-hungry, fits this criteria.
 
-R-trees can be thought of as binary search trees (BSTs) for geographical data. Both data structures achieve roughly O(log n) query complexity by hierarchically splitting the search space at different scales and exploiting this to rapidly narrow down the set of possible targets. R-trees are typically populated with boundary MBRs. Revgeocoder does this with build_rtree() at revgeocoder/src/utils/qindex.py. It then uses the R-tree to quickly narrow down the set of possible regions for every query point in the input data and runs PiP on the remaning candidate regions until it finds a match. Revgeocoder computes and stores the MBRs with compute_mbrs() in revgeocoder/src/utils/geodata.py. 
+R-trees can be thought of as binary search trees (BSTs) for geographical data. Both data structures achieve roughly ```O(log n)``` query complexity by hierarchically splitting the search space at different scales and exploiting this to rapidly narrow down the set of possible targets. R-trees are typically populated with boundary MBRs. Revgeocoder does this with ```build_rtree()``` at ```revgeocoder/src/utils/qindex.py```. It then uses the R-tree to quickly narrow down the set of possible regions for every query point in the input data and runs PiP on the remaning candidate regions until it finds a match. Revgeocoder computes and stores the MBRs with ```compute_mbrs()``` in ```revgeocoder/src/utils/geodata.py```. 
 
 Below is a graphical representation of an R-tree that makes its underlying concepts simple to grasp.
 
@@ -92,38 +92,38 @@ R-tree graphical representation.<br>
 
 
 #### Infrastructure
-Revgeocoder is a containerized application with a Docker image at [meyassu/revgeocoder:latest](https://hub.docker.com/repository/docker/meyassu/revgeocoder/general) on Docker Hub so it can be executed on any machine running Docker. It also has a simple CI/CD pipeline which automatically builds the Docker image from the Dockerfile and pushes it up to Docker Hub whenever there is a 'git push' event that impacts the revgeocoder/ directory. The pipeline definition can be found at .github/workflows/main.yml.
+Revgeocoder is a containerized application with a Docker image at [meyassu/revgeocoder:latest](https://hub.docker.com/repository/docker/meyassu/revgeocoder/general) on Docker Hub so it can be executed on any machine running Docker. It also has a simple CI/CD pipeline which automatically builds the Docker image from the Dockerfile and pushes it up to Docker Hub whenever there is a ```git push``` event that impacts the ```revgeocoder/``` directory. The pipeline definition can be found at ```.github/workflows/main.yml```.
 
 #### Instructions
 As mentioned in [Infrastructure][#infrastructure], Revgeocoder is a containerized application. To run it, complete the following steps:
 1) Install Docker
 2) Download run-revgeocoder.sh
 3) Set up input user directory (refer to examples/revgeocoder/data)
-    a) create an empty directory called ~~~data~~~
+    a) create an empty directory called ```data```
     b) data/ must consist of the following subdirectories: config, input, and output
         i) config: this directory must contain a .env file with the following fields:
-            - ~~~DATA_TABLE_NAME~~~: the table that will store the input data in input/
-            - ~~~LOCATION_TABLE_NAME~~~: the table that will store the (country, province) tuples outputted by Revgeocoder
-            - RDS: must be either ~~~TRUE~~~ or ~~~FALSE~~~ and indicates whether the user database is hosted on an RDS instance
-            - REGION: must be included if ~~~RDS=TRUE~~~; the region of the connected AWS compute instance
-            - DB_CERT_FPATH: must be included if ~~~RDS=TRUE~~~; get .pem file from examples/revgeocoder/data and put it in config, set this to ~~~user_data/config/rds-ca-2019-root.pem~~~
-            - DB_USER: the database username
-            - DB_HOST: the database hostname
-            - DB_POST: the database port number (usually 5432 for PostGreSQL databases)
-            - DB_NAME: the database name
-            - BATCH_SIZE: the batch size
-        ii) input/: must contain a single CSV file called ~~~data.csv~~~
+            - ```DATA_TABLE_NAME```: the table that will store the input data in input/
+            - ```LOCATION_TABLE_NAME```: the table that will store the (country, province) tuples outputted by Revgeocoder
+            - ```RDS```: must be either ```TRUE``` or ```FALSE``` and indicates whether the user database is hosted on an RDS instance
+            - ```REGION```: must be included if ```RDS=TRUE```; the region of the connected AWS compute instance
+            - ```DB_CERT_FPATH```: must be included if ```RDS=TRUE```; get .pem file from examples/revgeocoder/data and put it in config, set this to ```user_data/config/rds-ca-2019-root.pem```
+            - ```DB_USER```: the database username
+            - ```DB_HOST```: the database hostname
+            - ```DB_POST```: the database port number (usually 5432 for PostGreSQL databases)
+            - ```DB_NAME```: the database name
+            - ```BATCH_SIZE```: the batch size
+        ii) input/: must contain a single CSV file called ```data.csv```
         iii) output/: must be empty, the output CSV will be stored here
-    c) Type ~~~chmod +x run-revgeocoder.sh~~~ to enable execute bit on bash script
-    d) run run-revgeocoder.sh and pass it the absolute filpath to data directory: './run-revgeocoder.sh <ABSOLUTE_FILEPATH_DATA_DIR>'
+    c) Type ```chmod +x run-revgeocoder.sh``` to enable execute bit on bash script
+    d) run run-revgeocoder.sh and pass it the absolute filpath to data directory: ```./run-revgeocoder.sh <ABSOLUTE_FILEPATH_DATA_DIR>```
 
 To run Revgeocoder with the example data in examples/revgeocoder/data, do the following:
 1) Install Docker
 2) Download run-revgeocoder.sh
 3) Download examples/revgeocoder/data
-4) Type 'chmod +x run-revgeocoder.sh' to enable execute bit on bash script
-5) Run './run-revgeocoder.sh <ABSOLUTE_FILEPATH_DATA_DIR>'
-Revgeocoder will use the designated backend database on a staging environment to run this process.
+4) Type ```chmod +x run-revgeocoder.sh``` to enable execute bit on bash script
+5) Run ```./run-revgeocoder.sh <ABSOLUTE_FILEPATH_DATA_DIR>```
+Revgeocoder will use a designated backend database on a staging environment to run this process.
 
 
     
