@@ -103,17 +103,17 @@ As mentioned in [Infrastructure][#infrastructure], Revgeocoder is a containerize
     b) data/ must consist of the following subdirectories: config, input, and output <br>
        &emsp;&emsp;i) config: this directory must contain a .env file with the following fields: <br>
             &emsp;&emsp;&emsp;- ```DATA_TABLE_NAME```: the table that will store the input data in input/ <br>
-            &emsp;- ```LOCATION_TABLE_NAME```: the table that will store the (country, province) tuples outputted by Revgeocoder <br>
-            - ```RDS```: must be either ```TRUE``` or ```FALSE``` and indicates whether the user database is hosted on an RDS instance <br>
-            - ```REGION```: must be included if ```RDS=TRUE```; the region of the connected AWS compute instance <br>
-            - ```DB_CERT_FPATH```: must be included if ```RDS=TRUE```; get .pem file from examples/revgeocoder/data and put it in config, set this to ```user_data/config/rds-ca-2019-root.pem``` <br>
-            - ```DB_USER```: the database username <br>
-            - ```DB_HOST```: the database hostname <br>
-            - ```DB_POST```: the database port number (usually 5432 for PostGreSQL databases) <br>
-            - ```DB_NAME```: the database name <br>
-            - ```BATCH_SIZE```: the batch size <br>
-        ii) input/: must contain a single CSV file called ```data.csv``` <br>
-        iii) output/: must be empty, the output CSV will be stored here <br>
+            &emsp;&emsp;&emsp;- ```LOCATION_TABLE_NAME```: the table that will store the (country, province) tuples outputted by Revgeocoder <br>
+            &emsp;&emsp;&emsp;- ```RDS```: must be either ```TRUE``` or ```FALSE``` and indicates whether the user database is hosted on an RDS instance <br>
+            &emsp;&emsp;&emsp;- ```REGION```: must be included if ```RDS=TRUE```; the region of the connected AWS compute instance <br>
+            &emsp;&emsp;&emsp;- ```DB_CERT_FPATH```: must be included if ```RDS=TRUE```; get .pem file from examples/revgeocoder/data and put it in config, set this to ```user_data/config/rds-ca-2019-root.pem``` <br>
+            &emsp;&emsp;&emsp;- ```DB_USER```: the database username <br>
+            &emsp;&emsp;&emsp;- ```DB_HOST```: the database hostname <br>
+            &emsp;&emsp;&emsp;- ```DB_POST```: the database port number (usually 5432 for PostGreSQL databases) <br>
+            &emsp;&emsp;&emsp;- ```DB_NAME```: the database name <br>
+            &emsp;&emsp;&emsp;- ```BATCH_SIZE```: the batch size <br>
+        &emsp;&emsp;ii) input/: must contain a single CSV file called ```data.csv``` <br>
+        &emsp;&emsp;iii) output/: must be empty, the output CSV will be stored here <br>
     c) Type ```chmod +x run-revgeocoder.sh``` to enable execute bit on bash script <br>
     d) run run-revgeocoder.sh and pass it the absolute filpath to data directory: ```./run-revgeocoder.sh  <ABSOLUTE_FILEPATH_DATA_DIR>```
 
