@@ -70,7 +70,7 @@ if __name__ == "__main__":
     output.to_csv(output_fpath, index=False)
 
     
-    # Copy log file to Docker volume
+    # Copy log file to user_data for user visibility
     log_fpath = os.path.join(LOGS_DIR, 'log.txt')
     try:
         # Check if source file exists
