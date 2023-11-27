@@ -10,8 +10,6 @@ import logging
 import time
 import os
 
-from src.utils.database import get_data
-
 
 
 """
@@ -137,19 +135,16 @@ def get_rgdp_data(country_codes, driver):
     
     return True
         
-def _get_countries(engine):
+def _get_countries(data):
     """
     Get countries from database.
 
-    :param engine: (SqlAlchemy.engine) -> the database engine
+    :param data: (pd.DataFrame) -> the data
 
-    :return: (list<str>) -> the countries in the database
+    :return: (list<str>) -> the unique countries in the database
     """
     
-    query = '''
-            SELECT DISTINCT "Country" from locations;
-            '''
-    countries = get_data(query, engine)['Country'].tolist()
+    countries = list(data['country'].unique())
 
     return countries
 
