@@ -118,49 +118,51 @@ Both modules can work with any PostGreSQL database and even support interaction 
 
 ### Revgeocoder
 - revgeocoder
-    - logs/: stores program logs written during runtime
-    - user_data/: mounting point for user data within container (more details can be found at [Instructions](#instructions))
-    - .dockerignore: the .dockerignore for Revgeocoder
-    - Dockerfile: the Dockerfile for Revgeocoder
-    - environment.yml: serialization of environment that Docker uses to build the various dependencies within the Revgeocoder container
-    - data/internal/
-        - boundaries.geojson: boundary data for every province and large body of water on the planet
-        - mbrs.geojson: the minimum bounding rectangles (MBRs) for each boundary in boundary.geojson; used for spatial indexing with R-tree
-    - src/
-        - __init__.py: runs basic configuration processes for module
-        - main.py: driver program for Revgeocoder
-        - core/
-            - __init__.py: empty file used to mark core/ as a standalone module
-            - qindex.py: pulls from data/interna/mbrs.geojson to build the R-tree for spatial indexing
-            - rgc.py: core reverse geocoding process
-        - utils/
-            - __init__.py: empty file used to mark utils/ as a standalone module
-            - database.py: host of functions for interacting with user-specified PostGreSQL database
-            - exceptions.py: set of custom exception classes to improve error specificity
-            - geodata.py: few functions for dealing with geospatial data
-            - validate.py: validates earthquake dataset
+    -- logs/: stores program logs written during runtime
+    -- user_data/: mounting point for user data within container (more details can be found at [Instructions](#instructions))
+    -- .dockerignore: the .dockerignore for Revgeocoder
+    -- Dockerfile: the Dockerfile for Revgeocoder
+    -- environment.yml: serialization of environment that Docker uses to build the various dependencies within the Revgeocoder container
+    -- data/internal/
+        -- boundaries.geojson: boundary data for every province and large body of water on the planet
+        -- mbrs.geojson: the minimum bounding rectangles (MBRs) for each boundary in boundary.geojson; used for spatial indexing with R-tree
+    -- src/
+        -- __init__.py: runs basic configuration processes for module
+        -- main.py: driver program for Revgeocoder
+        -- core/
+            -- __init__.py: empty file used to mark core/ as a standalone module
+            -- qindex.py: pulls from data/interna/mbrs.geojson to build the R-tree for spatial indexing
+            -- rgc.py: core reverse geocoding process
+        -- utils/
+            -- __init__.py: empty file used to mark utils/ as a standalone module
+            -- database.py: host of functions for interacting with user-specified PostGreSQL database
+            -- exceptions.py: set of custom exception classes to improve error specificity
+            -- geodata.py: few functions for dealing with geospatial data
+            -- validate.py: validates earthquake dataset
 
 ### Econbot
-- econbot
-    - logs/: stores program logs written during runtime
-    - environment.yml: serialization of environment / dependencies
-    - data/internal/
-        - rgdp.csv: rGDP data for limited set of countries
-    - src/:
-        - __init__.py: empty file used to mark core/ as a standalone module
-        - main.py: driver program for Econbot
-        - core/
-            - __init__.py: empty file used to mark core/ as a standalone module
-            - econbot.py: web scraping functions
-        - utils/
-            - __init__.py: empty file used to mark core/ as a standalone module
-            - database.py: host of functions for interacting with user-specified PostGreSQL database
-            - exceptions.py: set of custom exception classes to improve error specificity
-            - validate.py: validates rGDP dataset created via web scraping
+-- econbot
+    -- logs/: stores program logs written during runtime
+    -- environment.yml: serialization of environment / dependencies
+    -- data/internal/
+        -- rgdp.csv: rGDP data for limited set of countries
+    -- src/:
+        -- __init__.py: empty file used to mark core/ as a standalone module
+        -- main.py: driver program for Econbot
+        -- core/
+            -- __init__.py: empty file used to mark core/ as a standalone module
+            -- econbot.py: web scraping functions
+        -- utils/
+            -- __init__.py: empty file used to mark core/ as a standalone module
+            -- database.py: host of functions for interacting with user-specified PostGreSQL database
+            -- exceptions.py: set of custom exception classes to improve error specificity
+            -- validate.py: validates rGDP dataset created via web scraping
 
 ## Instructions
 
 ### Revgeocoder
+Running Revgeocoder involves creating a directory with the following structure   
+
 
 ### Econbot
 
